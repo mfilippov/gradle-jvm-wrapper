@@ -10,9 +10,9 @@ repositories {
 
 gradlePlugin {
     plugins {
-        create("jvm-wrapper") {
-            id = "me.filippov.jvm.wrapper"
-            implementationClass = "me.filippov.jvm.wrapper.JvmWrapperPlugin"
+        create("jvm-wrapper-plugin") {
+            id = "me.filippov.gradle.jvm.wrapper"
+            implementationClass = "me.filippov.gradle.jvm.wrapper.Plugin"
         }
     }
 }
@@ -21,4 +21,12 @@ pluginBundle {
     website = "https://github.com/mfilippov/gradle-jvm-wrapper"
     vcsUrl = "https://github.com/mfilippov/gradle-jvm-wrapper"
     description = "Allows using gradle wrapper with embedded Java"
+    version = "0.1"
+
+    (plugins) {
+        "jvm-wrapper-plugin" {
+            displayName = "Embedded JVM in gradle wrapper plugin"
+            tags = listOf("wrapper", "jvm", "embedded", "plugin")
+        }
+    }
 }
