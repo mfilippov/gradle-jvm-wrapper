@@ -1,6 +1,6 @@
-package me.filippov.jvm.wrapper
+package me.filippov.gradle.jvm.wrapper
 
-open class JvmWrapperPluginExtension {
+open class PluginExtension {
     var winJvmUrl = "https://d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-windows-x64.zip"
     var winJvmRelativeArchivePath = "jdk11.0.4_10"
     var linJvmUrl = "https://repo.labs.intellij.net/cache/https/d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-macosx-x64.tar.gz"

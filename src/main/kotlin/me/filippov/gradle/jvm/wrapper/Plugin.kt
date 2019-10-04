@@ -1,10 +1,10 @@
-package me.filippov.jvm.wrapper
+package me.filippov.gradle.jvm.wrapper
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
 @Suppress("unused")
-class JvmWrapperPlugin : Plugin<Project> {
+class Plugin : Plugin<Project> {
     companion object {
         private const val winJvmFile = "jvm-windows-x64.zip"
         private const val macJvmFile = "jvm-macosx-x64.tar.gz"
@@ -19,7 +19,7 @@ class JvmWrapperPlugin : Plugin<Project> {
     }
 
     override fun apply(project: Project) {
-        val cfg = project.extensions.create("jvm-wrapper", JvmWrapperPluginExtension::class.java)
+        val cfg = project.extensions.create("jvm-wrapper", PluginExtension::class.java)
         val unixJvmScript = """
             # $patchedFileMarker
             BUILD_DIR=${"$"}APP_HOME/build
