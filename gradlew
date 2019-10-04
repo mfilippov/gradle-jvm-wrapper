@@ -87,12 +87,12 @@ BUILD_DIR=$APP_HOME/build
 JVM_TARGET_DIR=$BUILD_DIR/gradle-jvm
 
 if [ "$darwin" = "true" ]; then
-    JVM_TEMP_FILE=$BUILD_DIR/amazon-corretto-11.0.4.11.1-macosx-x64.tar.gz
-    JVM_URL=https://repo.labs.intellij.net/cache/https/d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-macosx-x64.tar.gz
+    JVM_TEMP_FILE=$BUILD_DIR/jvm-macosx-x64.tar.gz
+    JVM_URL=https://repo.labs.intellij.net/cache/https/d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-linux-x64.tar.gz
     JVM_ARCHIVE_RELATIVE_PATH=amazon-corretto-11.jdk/Contents/Home
 else
-    JVM_TEMP_FILE=$BUILD_DIR/amazon-corretto-11.0.4.11.1-linux-x64.tar.gz
-    JVM_URL=https://repo.labs.intellij.net/cache/https/d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-linux-x64.tar.gz
+    JVM_TEMP_FILE=$BUILD_DIR/jvm-linux-x64.tar.gz
+    JVM_URL=https://repo.labs.intellij.net/cache/https/d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-macosx-x64.tar.gz
     JVM_ARCHIVE_RELATIVE_PATH=
 fi
 

@@ -14,11 +14,15 @@ class JvmWrapperPlugin : Plugin<Project> {
         private const val linJvmFile = "jvm-linux-x64.tar.gz"
         private const val patchedFileMarker = "GRADLE JVM PLUGIN PATH MARKER"
         private const val unixPatchPlaceHolder = "# Determine the Java command to use to start the JVM."
+        private const val winPatchPlaceHolder = "@rem Find java.exe"
+        val wrapperTaskName = "wrapper"
+        val updateWrapperFilesTaskName = "update-wrapper-files"
+        val winWrapperFileName = "gradlew"
+        val unixWrapperFileName = "gradlew.bat"
     }
-    private val isWindows = System.getProperty("os.name").startsWith("windows")
 
     override fun apply(project: Project) {
-        val cfg = project.extensions.create<JvmWrapperPluginExtension>("gradle-jvm-wrapper")
+        val cfg = project.extensions.create<JvmWrapperPluginExtension>("jvm-wrapper")
         val unixJvmScript = """
             # $patchedFileMarker
             BUILD_DIR=${"$"}APP_HOME/build
@@ -69,18 +73,99 @@ class JvmWrapperPlugin : Plugin<Project> {
     
             set +e${"\n\n"}
         """.trimIndent()
+        val winJvmScript = """
+            @rem $patchedFileMarker
+            set JAVA_HOME=%APP_HOME%build\gradle-jvm\jdk11.0.4_10
 
-        project.task("patch-command-line") {
+            setlocal
+
+            set BUILD_DIR=%APP_HOME%build\
+            set JVM_TARGET_DIR=%BUILD_DIR%gradle-jvm\
+            
+            set JVM_TEMP_FILE=amazon-corretto-11.0.4.11.1-windows-x64.zip
+            set JVM_URL=https://repo.labs.intellij.net/cache/https/d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-windows-x64.zip
+            
+            set POWERSHELL=%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe
+            
+            if not exist "%JVM_TARGET_DIR%" MD "%JVM_TARGET_DIR%"
+            
+            if not exist "%JAVA_HOME%\bin\java.exe" goto downloadAndExtractJvm
+            if not exist "%JVM_TARGET_DIR%.flag" goto downloadAndExtractJvm
+            
+            echo %JVM_URL% >"%JVM_TARGET_DIR%.flag.tmp"
+            if errorlevel 1 goto fail
+            
+            FC /B "%JVM_TARGET_DIR%.flag" "%JVM_TARGET_DIR%.flag.tmp" >nul
+            if "%ERRORLEVEL%" == "0" goto continueWithJvm
+            
+            :downloadAndExtractJvm
+            
+            CD "%BUILD_DIR%"
+            if errorlevel 1 goto fail
+            
+            echo Downloading %JVM_URL% to %BUILD_DIR%%JVM_TEMP_FILE%
+            if exist "%JVM_TEMP_FILE%" DEL /F "%JVM_TEMP_FILE%"
+            "%POWERSHELL%" -nologo -noprofile -Command "Set-StrictMode -Version 3.0; ${"$"}ErrorActionPreference = \"Stop\"; (New-Object Net.WebClient).DownloadFile('%JVM_URL%', '%JVM_TEMP_FILE%')"
+            if errorlevel 1 goto fail
+            
+            RMDIR /S /Q "%JVM_TARGET_DIR%"
+            if errorlevel 1 goto fail
+            
+            MKDIR "%JVM_TARGET_DIR%"
+            if errorlevel 1 goto fail
+            
+            CD "%JVM_TARGET_DIR%"
+            if errorlevel 1 goto fail
+            
+            echo Extracting %BUILD_DIR%%JVM_TEMP_FILE% to %JVM_TARGET_DIR%
+            "%POWERSHELL%" -nologo -noprofile -command "Set-StrictMode -Version 3.0; ${"$"}ErrorActionPreference = \"Stop\"; Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory('..\\%JVM_TEMP_FILE%', '.');"
+            if errorlevel 1 goto fail
+            
+            DEL /F "..\%JVM_TEMP_FILE%"
+            if errorlevel 1 goto fail
+            
+            echo %JVM_URL% >"%JVM_TARGET_DIR%.flag"
+            if errorlevel 1 goto fail
+            
+            :continueWithJvm
+            
+            if exist "%JVM_TARGET_DIR%.flag.tmp" (
+              DEL /F "%JVM_TARGET_DIR%.flag.tmp"
+              if errorlevel 1 goto fail
+            )
+            
+            endlocal${"\n\n"}""".trimIndent()
+
+        project.task(updateWrapperFilesTaskName) {
+            val unixScriptFile = project.file(winWrapperFileName)
+            val winScriptFile = project.file(unixWrapperFileName)
             doLast {
-                val unixScriptFile = project.file("gradlew")
                 val unixScriptFileContent = unixScriptFile.readText(Charsets.UTF_8)
                 if (!unixScriptFileContent.contains(patchedFileMarker)) {
+                    project.logger.debug("Patch $unixScriptFile")
                     val newUnixScriptFileContent = unixScriptFileContent.replace(unixPatchPlaceHolder, unixJvmScript + unixPatchPlaceHolder)
                     unixScriptFile.writeText(newUnixScriptFileContent, Charsets.UTF_8)
+                    project.logger.debug("$unixScriptFile patched")
+                } else {
+                    project.logger.debug("$unixScriptFile is up-to-date")
+                }
+                val winScriptFileContent = winScriptFile.readText(Charsets.UTF_8)
+                if (!winScriptFileContent.contains(patchedFileMarker)) {
+                    project.logger.debug("Patch $winScriptFile")
+                    val newWinScriptFileContent = winScriptFileContent.replace(winPatchPlaceHolder,
+                            if (winScriptFileContent.contains("\r\n")) {
+                                winJvmScript.replace("\n", "\r\n")
+                            } else {
+                                winJvmScript
+                            } + winPatchPlaceHolder)
+                    winScriptFile.writeText(newWinScriptFileContent, Charsets.UTF_8)
+                    project.logger.debug("$winScriptFile patched")
+                } else {
+                    project.logger.debug("$winScriptFile is up-to-date")
                 }
             }
         }
-        project.tasks.findByName("wrapper")?.finalizedBy("patch-command-line")
+        project.tasks.findByName(wrapperTaskName)?.finalizedBy(updateWrapperFilesTaskName)
     }
 }
 

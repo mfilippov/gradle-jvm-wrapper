@@ -32,6 +32,67 @@ set APP_HOME=%DIRNAME%
 @rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
 set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
 
+@rem GRADLE JVM PLUGIN PATH MARKER
+set JAVA_HOME=%APP_HOME%build\gradle-jvm\jdk11.0.4_10
+
+setlocal
+
+set BUILD_DIR=%APP_HOME%build\
+set JVM_TARGET_DIR=%BUILD_DIR%gradle-jvm\
+
+set JVM_TEMP_FILE=amazon-corretto-11.0.4.11.1-windows-x64.zip
+set JVM_URL=https://repo.labs.intellij.net/cache/https/d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-windows-x64.zip
+
+set POWERSHELL=%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe
+
+if not exist "%JVM_TARGET_DIR%" MD "%JVM_TARGET_DIR%"
+
+if not exist "%JAVA_HOME%\bin\java.exe" goto downloadAndExtractJvm
+if not exist "%JVM_TARGET_DIR%.flag" goto downloadAndExtractJvm
+
+echo %JVM_URL% >"%JVM_TARGET_DIR%.flag.tmp"
+if errorlevel 1 goto fail
+
+FC /B "%JVM_TARGET_DIR%.flag" "%JVM_TARGET_DIR%.flag.tmp" >nul
+if "%ERRORLEVEL%" == "0" goto continueWithJvm
+
+:downloadAndExtractJvm
+
+CD "%BUILD_DIR%"
+if errorlevel 1 goto fail
+
+echo Downloading %JVM_URL% to %BUILD_DIR%%JVM_TEMP_FILE%
+if exist "%JVM_TEMP_FILE%" DEL /F "%JVM_TEMP_FILE%"
+"%POWERSHELL%" -nologo -noprofile -Command "Set-StrictMode -Version 3.0; $ErrorActionPreference = \"Stop\"; (New-Object Net.WebClient).DownloadFile('%JVM_URL%', '%JVM_TEMP_FILE%')"
+if errorlevel 1 goto fail
+
+RMDIR /S /Q "%JVM_TARGET_DIR%"
+if errorlevel 1 goto fail
+
+MKDIR "%JVM_TARGET_DIR%"
+if errorlevel 1 goto fail
+
+CD "%JVM_TARGET_DIR%"
+if errorlevel 1 goto fail
+
+echo Extracting %BUILD_DIR%%JVM_TEMP_FILE% to %JVM_TARGET_DIR%
+"%POWERSHELL%" -nologo -noprofile -command "Set-StrictMode -Version 3.0; $ErrorActionPreference = \"Stop\"; Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory('..\\%JVM_TEMP_FILE%', '.');"
+if errorlevel 1 goto fail
+
+DEL /F "..\%JVM_TEMP_FILE%"
+if errorlevel 1 goto fail
+
+echo %JVM_URL% >"%JVM_TARGET_DIR%.flag"
+if errorlevel 1 goto fail
+
+:continueWithJvm
+
+if exist "%JVM_TARGET_DIR%.flag.tmp" (
+  DEL /F "%JVM_TARGET_DIR%.flag.tmp"
+  if errorlevel 1 goto fail
+)
+
+endlocal
 @rem Find java.exe
 if defined JAVA_HOME goto findJavaFromJavaHome
 
