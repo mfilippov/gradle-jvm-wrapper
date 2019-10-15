@@ -1,6 +1,4 @@
 # Gradle JVM Wrapper plugin
-This plugin allows the use of Gradle wrapper on the machine without JVM.
-
 To use it, you need to add the plugin in your Gradle file.
 
 For Groovy edition:
