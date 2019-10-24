@@ -2,6 +2,7 @@ package me.filippov.gradle.jvm.wrapper
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.tasks.wrapper.Wrapper
 
 @Suppress("unused")
 class Plugin : Plugin<Project> {
@@ -13,13 +14,11 @@ class Plugin : Plugin<Project> {
         private const val unixPatchPlaceHolder = "# Determine the Java command to use to start the JVM."
         private const val winPatchPlaceHolder = "@rem Find java.exe"
         const val wrapperTaskName = "wrapper"
-        const val jvmWrapperTaskName = "jvm-wrapper"
-        const val winWrapperFileName = "gradlew"
-        const val unixWrapperFileName = "gradlew.bat"
+        const val extensionName = "jvmWrapper"
     }
 
     override fun apply(project: Project) {
-        val cfg = project.extensions.create(jvmWrapperTaskName, PluginExtension::class.java)
+        val cfg = project.extensions.create(extensionName, PluginExtension::class.java)
         val unixJvmScript = """
             # $patchedFileMarker
             BUILD_DIR=${"$"}APP_HOME/build
@@ -132,11 +131,14 @@ class Plugin : Plugin<Project> {
             )
             
             endlocal${"\n\n"}""".trimIndent()
-        val wrapperTask = project.tasks.findByName(wrapperTaskName) ?: throw Exception("Wrapper task not found")
-        project.tasks.register(jvmWrapperTaskName) {
-            it.doLast {
-                val unixScriptFile = project.file(winWrapperFileName)
-                val winScriptFile = project.file(unixWrapperFileName)
+        project.tasks.getByName(wrapperTaskName) {
+            val task = it as Wrapper
+            task.doLast {
+                val unixScriptFile = task.scriptFile
+                val winScriptFile = task.batchScript
+
+                println(unixScriptFile)
+                println(winScriptFile)
 
                 val unixScriptFileContent = unixScriptFile.readText(Charsets.UTF_8)
                 if (!unixScriptFileContent.contains(patchedFileMarker)) {
@@ -162,7 +164,6 @@ class Plugin : Plugin<Project> {
                     project.logger.debug("$winScriptFile is up-to-date")
                 }
             }
-            it.dependsOn(wrapperTask)
         }
     }
 }

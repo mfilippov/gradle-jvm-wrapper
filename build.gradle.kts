@@ -8,6 +8,10 @@ repositories {
     mavenCentral()
 }
 
+dependencies {
+    implementation(kotlin("stdlib"))
+}
+
 gradlePlugin {
     plugins {
         create("jvm-wrapper-plugin") {
