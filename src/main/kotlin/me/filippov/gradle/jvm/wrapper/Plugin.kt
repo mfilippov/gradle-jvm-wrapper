@@ -10,7 +10,8 @@ class Plugin : Plugin<Project> {
         private const val winJvmFile = "jvm-windows-x64.zip"
         private const val macJvmFile = "jvm-macosx-x64.tar.gz"
         private const val linJvmFile = "jvm-linux-x64.tar.gz"
-        private const val patchedFileMarker = "GRADLE JVM PLUGIN PATH MARKER"
+        private const val patchedFileStartMarker = "GRADLE JVM WRAPPER START MARKER"
+        private const val patchedFileEndMarker = "GRADLE JVM WRAPPER END MARKER"
         private const val unixPatchPlaceHolder = "# Determine the Java command to use to start the JVM."
         private const val winPatchPlaceHolder = "@rem Find java.exe"
         const val wrapperTaskName = "wrapper"
@@ -20,7 +21,7 @@ class Plugin : Plugin<Project> {
     override fun apply(project: Project) {
         val cfg = project.extensions.create(extensionName, PluginExtension::class.java)
         val unixJvmScript = """
-            # $patchedFileMarker
+            # $patchedFileStartMarker
             BUILD_DIR=${"$"}APP_HOME/build
             JVM_TARGET_DIR=${"$"}BUILD_DIR/gradle-jvm
     
@@ -67,11 +68,12 @@ class Plugin : Plugin<Project> {
     
             JAVA_HOME=${"$"}JVM_TARGET_DIR/${"$"}JVM_ARCHIVE_RELATIVE_PATH
     
-            set +e${"\n\n"}
-        """.trimIndent()
+            set +e
+            
+            # $patchedFileEndMarker
+        """.trimIndent() + "\n\n"
         val winJvmScript = """
-            @rem $patchedFileMarker
-            set JAVA_HOME=%APP_HOME%build\gradle-jvm\${cfg.winJvmRelativeArchivePath}
+            @rem $patchedFileStartMarker
 
             setlocal
 
@@ -85,14 +87,10 @@ class Plugin : Plugin<Project> {
             
             if not exist "%JVM_TARGET_DIR%" MD "%JVM_TARGET_DIR%"
             
-            if not exist "%JAVA_HOME%\bin\java.exe" goto downloadAndExtractJvm
             if not exist "%JVM_TARGET_DIR%.flag" goto downloadAndExtractJvm
             
-            echo %JVM_URL% >"%JVM_TARGET_DIR%.flag.tmp"
-            if errorlevel 1 goto fail
-            
-            FC /B "%JVM_TARGET_DIR%.flag" "%JVM_TARGET_DIR%.flag.tmp" >nul
-            if "%ERRORLEVEL%" == "0" goto continueWithJvm
+            set /p CURRENT_FLAG=<"%JVM_TARGET_DIR%.flag"
+            if "%CURRENT_FLAG%" == "%JVM_URL%" goto continueWithJvm
             
             :downloadAndExtractJvm
             
@@ -120,17 +118,22 @@ class Plugin : Plugin<Project> {
             DEL /F "..\%JVM_TEMP_FILE%"
             if errorlevel 1 goto fail
             
-            echo %JVM_URL% >"%JVM_TARGET_DIR%.flag"
+            echo %JVM_URL%>"%JVM_TARGET_DIR%.flag"
             if errorlevel 1 goto fail
             
             :continueWithJvm
             
-            if exist "%JVM_TARGET_DIR%.flag.tmp" (
-              DEL /F "%JVM_TARGET_DIR%.flag.tmp"
-              if errorlevel 1 goto fail
+            set JAVA_HOME=
+            for /d %%d in (%JVM_TARGET_DIR%*) do if exist "%%d\bin\java.exe" set JAVA_HOME=%%d
+            if not exist "%JAVA_HOME%\bin\java.exe" (
+              echo Unable to find java.exe under %JVM_TARGET_DIR%
+              goto fail
             )
             
-            endlocal${"\n\n"}""".trimIndent()
+            endlocal & set JAVA_HOME=%JAVA_HOME%
+            
+            @rem $patchedFileEndMarker
+        """.trimIndent() + "\n\n"
         project.tasks.getByName(wrapperTaskName) {
             val task = it as Wrapper
             task.doLast {
@@ -141,7 +144,7 @@ class Plugin : Plugin<Project> {
                 println(winScriptFile)
 
                 val unixScriptFileContent = unixScriptFile.readText(Charsets.UTF_8)
-                if (!unixScriptFileContent.contains(patchedFileMarker)) {
+                if (!unixScriptFileContent.contains(patchedFileStartMarker)) {
                     project.logger.debug("Patch $unixScriptFile")
                     val newUnixScriptFileContent = unixScriptFileContent.replace(unixPatchPlaceHolder, unixJvmScript + unixPatchPlaceHolder)
                     unixScriptFile.writeText(newUnixScriptFileContent, Charsets.UTF_8)
@@ -150,7 +153,7 @@ class Plugin : Plugin<Project> {
                     project.logger.debug("$unixScriptFile is up-to-date")
                 }
                 val winScriptFileContent = winScriptFile.readText(Charsets.UTF_8)
-                if (!winScriptFileContent.contains(patchedFileMarker)) {
+                if (!winScriptFileContent.contains(patchedFileStartMarker)) {
                     project.logger.debug("Patch $winScriptFile")
                     val newWinScriptFileContent = winScriptFileContent.replace(winPatchPlaceHolder,
                             if (winScriptFileContent.contains("\r\n")) {
