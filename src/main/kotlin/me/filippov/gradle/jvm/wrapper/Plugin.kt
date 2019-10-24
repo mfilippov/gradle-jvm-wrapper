@@ -3,13 +3,14 @@ package me.filippov.gradle.jvm.wrapper
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.wrapper.Wrapper
+import java.security.MessageDigest
 
 @Suppress("unused")
 class Plugin : Plugin<Project> {
     companion object {
         private const val winJvmFile = "jvm-windows-x64.zip"
         private const val macJvmFile = "jvm-macosx-x64.tar.gz"
-        private const val linJvmFile = "jvm-linux-x64.tar.gz"
+        private const val linuxJvmFile = "jvm-linux-x64.tar.gz"
         private const val patchedFileStartMarker = "GRADLE JVM WRAPPER START MARKER"
         private const val patchedFileEndMarker = "GRADLE JVM WRAPPER END MARKER"
         private const val unixPatchPlaceHolder = "# Determine the Java command to use to start the JVM."
@@ -18,19 +19,31 @@ class Plugin : Plugin<Project> {
         const val extensionName = "jvmWrapper"
     }
 
+    private fun String.sha256(): String {
+        val md = MessageDigest.getInstance("SHA-256")
+        val digest = md.digest(toByteArray())
+        return digest.fold("", { str, it -> str + "%02x".format(it) })
+    }
+
+    private fun getJvmDirName(url: String) =
+        url.substringAfterLast('/').removeSuffix(".zip").removeSuffix(".tar.gz") +
+                "-" +
+                url.sha256().take(6)
+
     override fun apply(project: Project) {
         val cfg = project.extensions.create(extensionName, PluginExtension::class.java)
         val unixJvmScript = """
             # $patchedFileStartMarker
             BUILD_DIR=${"$"}APP_HOME/build
-            JVM_TARGET_DIR=${"$"}BUILD_DIR/gradle-jvm
     
             if [ "${"$"}darwin" = "true" ]; then
                 JVM_TEMP_FILE=${"$"}BUILD_DIR/$macJvmFile
                 JVM_URL=${cfg.macJvmUrl}
+                JVM_TARGET_DIR=${"$"}BUILD_DIR/gradle-jvm/${getJvmDirName(cfg.macJvmUrl)}
             else
-                JVM_TEMP_FILE=${"$"}BUILD_DIR/$linJvmFile
-                JVM_URL=${cfg.linJvmUrl}
+                JVM_TEMP_FILE=${"$"}BUILD_DIR/$linuxJvmFile
+                JVM_URL=${cfg.linuxJvmUrl}
+                JVM_TARGET_DIR=${"$"}BUILD_DIR/gradle-jvm/${getJvmDirName(cfg.linuxJvmUrl)}
             fi
     
             set -e
@@ -88,10 +101,10 @@ class Plugin : Plugin<Project> {
             setlocal
 
             set BUILD_DIR=%APP_HOME%build\
-            set JVM_TARGET_DIR=%BUILD_DIR%gradle-jvm\
+            set JVM_TARGET_DIR=%BUILD_DIR%gradle-jvm\${getJvmDirName(cfg.windowsJvmUrl)}\
             
             set JVM_TEMP_FILE=amazon-corretto-11.0.4.11.1-windows-x64.zip
-            set JVM_URL=${cfg.winJvmUrl}
+            set JVM_URL=${cfg.windowsJvmUrl}
             
             set POWERSHELL=%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe
             
@@ -122,10 +135,10 @@ class Plugin : Plugin<Project> {
             if errorlevel 1 goto fail
             
             echo Extracting %BUILD_DIR%%JVM_TEMP_FILE% to %JVM_TARGET_DIR%
-            "%POWERSHELL%" -nologo -noprofile -command "Set-StrictMode -Version 3.0; ${"$"}ErrorActionPreference = \"Stop\"; Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory('..\\%JVM_TEMP_FILE%', '.');"
+            "%POWERSHELL%" -nologo -noprofile -command "Set-StrictMode -Version 3.0; ${"$"}ErrorActionPreference = \"Stop\"; Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory('..\\..\\%JVM_TEMP_FILE%', '.');"
             if errorlevel 1 goto fail
             
-            DEL /F "..\%JVM_TEMP_FILE%"
+            DEL /F "..\..\%JVM_TEMP_FILE%"
             if errorlevel 1 goto fail
             
             echo %JVM_URL%>"%JVM_TARGET_DIR%.flag"
