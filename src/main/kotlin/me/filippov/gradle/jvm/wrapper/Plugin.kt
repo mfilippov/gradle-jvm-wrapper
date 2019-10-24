@@ -28,11 +28,9 @@ class Plugin : Plugin<Project> {
             if [ "${"$"}darwin" = "true" ]; then
                 JVM_TEMP_FILE=${"$"}BUILD_DIR/$macJvmFile
                 JVM_URL=${cfg.macJvmUrl}
-                JVM_ARCHIVE_RELATIVE_PATH=${cfg.macJvmRelativeArchivePath}
             else
                 JVM_TEMP_FILE=${"$"}BUILD_DIR/$linJvmFile
                 JVM_URL=${cfg.linJvmUrl}
-                JVM_ARCHIVE_RELATIVE_PATH=${cfg.linJvmRelativeArchivePath}
             fi
     
             set -e
@@ -66,7 +64,19 @@ class Plugin : Plugin<Project> {
               echo "${"$"}JVM_URL" >"${"$"}JVM_TARGET_DIR/.flag"
             fi
     
-            JAVA_HOME=${"$"}JVM_TARGET_DIR/${"$"}JVM_ARCHIVE_RELATIVE_PATH
+            JAVA_HOME=
+            for d in "${"$"}JVM_TARGET_DIR" "${"$"}JVM_TARGET_DIR"/* ${"$"}JVM_TARGET_DIR/Contents/Home ${"$"}JVM_TARGET_DIR/*/Contents/Home; do
+              if [ -e "${"$"}d/bin/java" ]; then
+                JAVA_HOME="${"$"}d"
+              fi
+            done
+            
+            if [ '!' -e "${"$"}JAVA_HOME/bin/java" ]; then
+              die "Unable to find bin/java under ${"$"}JVM_TARGET_DIR"
+            fi
+            
+            # Make it available for child processes
+            export JAVA_HOME
     
             set +e
             
