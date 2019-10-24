@@ -107,7 +107,7 @@ class Plugin : Plugin<Project> {
                     set JVM_TARGET_DIR=%BUILD_DIR%gradle-jvm\${getJvmDirName(cfg.windowsJvmUrl)}\
                     
                     set JVM_TEMP_FILE=$windowsJvmFile
-                    set JVM_URL=${cfg.windowsJvmUrl}
+                    set JVM_URL=${cfg.windowsJvmUrl.replace("%", "%%")}
                     
                     set POWERSHELL=%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe
                     
