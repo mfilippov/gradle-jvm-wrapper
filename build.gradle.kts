@@ -25,7 +25,7 @@ pluginBundle {
     website = "https://github.com/mfilippov/gradle-jvm-wrapper"
     vcsUrl = "https://github.com/mfilippov/gradle-jvm-wrapper"
     description = "Allows using gradle wrapper with embedded Java"
-    version = "0.8"
+    version = "0.9"
 
     (plugins) {
         "jvm-wrapper-plugin" {
