@@ -150,7 +150,7 @@ class Plugin : Plugin<Project> {
                     :continueWithJvm
                     
                     set JAVA_HOME=
-                    for /d %%d in (%JVM_TARGET_DIR%*) do if exist "%%d\bin\java.exe" set JAVA_HOME=%%d
+                    for /d %%d in ("%JVM_TARGET_DIR%"*) do if exist "%%d\bin\java.exe" set JAVA_HOME=%%d
                     if not exist "%JAVA_HOME%\bin\java.exe" (
                       echo Unable to find java.exe under %JVM_TARGET_DIR%
                       goto fail
