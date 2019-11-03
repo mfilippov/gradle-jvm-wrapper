@@ -82,18 +82,17 @@ esac
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
-# GRADLE JVM PLUGIN PATH MARKER
+# GRADLE JVM WRAPPER START MARKER
 BUILD_DIR=$APP_HOME/build
-JVM_TARGET_DIR=$BUILD_DIR/gradle-jvm
 
 if [ "$darwin" = "true" ]; then
     JVM_TEMP_FILE=$BUILD_DIR/jvm-macosx-x64.tar.gz
-    JVM_URL=https://repo.labs.intellij.net/cache/https/d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-linux-x64.tar.gz
-    JVM_ARCHIVE_RELATIVE_PATH=amazon-corretto-11.jdk/Contents/Home
+    JVM_URL=https://d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-macosx-x64.tar.gz
+    JVM_TARGET_DIR=$BUILD_DIR/gradle-jvm/amazon-corretto-11.0.4.11.1-macosx-x64-cc08dc
 else
     JVM_TEMP_FILE=$BUILD_DIR/jvm-linux-x64.tar.gz
-    JVM_URL=https://repo.labs.intellij.net/cache/https/d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-macosx-x64.tar.gz
-    JVM_ARCHIVE_RELATIVE_PATH=
+    JVM_URL=https://d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-linux-x64.tar.gz
+    JVM_TARGET_DIR=$BUILD_DIR/gradle-jvm/amazon-corretto-11.0.4.11.1-linux-x64-a8fc5f
 fi
 
 set -e
@@ -127,9 +126,23 @@ else
   echo "$JVM_URL" >"$JVM_TARGET_DIR/.flag"
 fi
 
-JAVA_HOME=$JVM_TARGET_DIR/$JVM_ARCHIVE_RELATIVE_PATH
+JAVA_HOME=
+for d in "$JVM_TARGET_DIR" "$JVM_TARGET_DIR"/* $JVM_TARGET_DIR/Contents/Home $JVM_TARGET_DIR/*/Contents/Home; do
+  if [ -e "$d/bin/java" ]; then
+    JAVA_HOME="$d"
+  fi
+done
+
+if [ '!' -e "$JAVA_HOME/bin/java" ]; then
+  die "Unable to find bin/java under $JVM_TARGET_DIR"
+fi
+
+# Make it available for child processes
+export JAVA_HOME
 
 set +e
+
+# GRADLE JVM WRAPPER END MARKER
 
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
