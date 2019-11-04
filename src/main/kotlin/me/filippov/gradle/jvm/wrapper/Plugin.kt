@@ -81,7 +81,7 @@ class Plugin : Plugin<Project> {
                     fi
             
                     JAVA_HOME=
-                    for d in "${"$"}JVM_TARGET_DIR" "${"$"}JVM_TARGET_DIR"/* ${"$"}JVM_TARGET_DIR/Contents/Home ${"$"}JVM_TARGET_DIR/*/Contents/Home; do
+                    for d in "${"$"}JVM_TARGET_DIR" "${"$"}JVM_TARGET_DIR"/* "${"$"}JVM_TARGET_DIR"/Contents/Home "${"$"}JVM_TARGET_DIR"/*/Contents/Home; do
                       if [ -e "${"$"}d/bin/java" ]; then
                         JAVA_HOME="${"$"}d"
                       fi
