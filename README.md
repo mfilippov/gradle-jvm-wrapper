@@ -4,13 +4,13 @@ To use it, you need to add the plugin in your Gradle file.
 Groovy edition:
 ```groovy
 plugins {
-  id "me.filippov.gradle.jvm.wrapper" version "0.9.1"
+  id "me.filippov.gradle.jvm.wrapper" version "0.9.2"
 }
 ```
 Kotlin edition:
 ```kotlin
 plugins {
-  id("me.filippov.gradle.jvm.wrapper") version "0.9.1"
+  id("me.filippov.gradle.jvm.wrapper") version "0.9.2"
 }
 ```
 After that you could call Gradle task `wrapper` to setup wrapper and update command-line scripts.
@@ -19,7 +19,7 @@ By default plugin using Amazon Coretto 11. You could configure for your JVM dist
 Groovy edition:
 ```groovy
 plugins {
-  id "me.filippov.gradle.jvm.wrapper" version "0.9.1"
+  id "me.filippov.gradle.jvm.wrapper" version "0.9.2"
 }
 
 jvmWrapper {
@@ -31,7 +31,7 @@ jvmWrapper {
 Kotlin edition:
 ```kotlin
 plugins {
-  id("me.filippov.gradle.jvm.wrapper") version "0.9.1"
+  id("me.filippov.gradle.jvm.wrapper") version "0.9.2"
 }
 
 jvmWrapper {
