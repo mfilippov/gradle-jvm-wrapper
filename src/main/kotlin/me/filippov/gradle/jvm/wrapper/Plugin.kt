@@ -34,7 +34,7 @@ class Plugin : Plugin<Project> {
         val cfg = project.extensions.create(extensionName, PluginExtension::class.java)
         project.tasks.getByName(wrapperTaskName) {
             val task = it as Wrapper
-            task.doLast {
+            project.afterEvaluate {
                 val unixJvmScript = """
                     # $patchedFileStartMarker
                     BUILD_DIR=${"$"}APP_HOME/build
@@ -98,7 +98,8 @@ class Plugin : Plugin<Project> {
                     
                     # $patchedFileEndMarker
                 """.trimIndent() + "\n\n"
-                        val winJvmScript = """
+
+                val winJvmScript = """
                     @rem $patchedFileStartMarker
         
                     setlocal
@@ -161,31 +162,36 @@ class Plugin : Plugin<Project> {
                     @rem $patchedFileEndMarker
                 """.trimIndent() + "\n\n"
 
-                val unixScriptFile = task.scriptFile
-                val winScriptFile = task.batchScript
+                task.inputs.property("unixJvmScript", unixJvmScript)
+                task.inputs.property("winJvmScript", winJvmScript)
 
-                val unixScriptFileContent = unixScriptFile.readText(Charsets.UTF_8)
-                if (!unixScriptFileContent.contains(patchedFileStartMarker)) {
-                    project.logger.debug("Patch $unixScriptFile")
-                    val newUnixScriptFileContent = unixScriptFileContent.replace(unixPatchPlaceHolder, unixJvmScript + unixPatchPlaceHolder)
-                    unixScriptFile.writeText(newUnixScriptFileContent, Charsets.UTF_8)
-                    project.logger.debug("$unixScriptFile patched")
-                } else {
-                    project.logger.debug("$unixScriptFile is up-to-date")
-                }
-                val winScriptFileContent = winScriptFile.readText(Charsets.UTF_8)
-                if (!winScriptFileContent.contains(patchedFileStartMarker)) {
-                    project.logger.debug("Patch $winScriptFile")
-                    val newWinScriptFileContent = winScriptFileContent.replace(winPatchPlaceHolder,
-                            if (winScriptFileContent.contains("\r\n")) {
-                                winJvmScript.replace("\n", "\r\n")
-                            } else {
-                                winJvmScript
-                            } + winPatchPlaceHolder)
-                    winScriptFile.writeText(newWinScriptFileContent, Charsets.UTF_8)
-                    project.logger.debug("$winScriptFile patched")
-                } else {
-                    project.logger.debug("$winScriptFile is up-to-date")
+                task.doLast {
+                    val unixScriptFile = task.scriptFile
+                    val winScriptFile = task.batchScript
+
+                    val unixScriptFileContent = unixScriptFile.readText(Charsets.UTF_8)
+                    if (!unixScriptFileContent.contains(patchedFileStartMarker)) {
+                        project.logger.debug("Patch $unixScriptFile")
+                        val newUnixScriptFileContent = unixScriptFileContent.replace(unixPatchPlaceHolder, unixJvmScript + unixPatchPlaceHolder)
+                        unixScriptFile.writeText(newUnixScriptFileContent, Charsets.UTF_8)
+                        project.logger.debug("$unixScriptFile patched")
+                    } else {
+                        project.logger.debug("$unixScriptFile is up-to-date")
+                    }
+                    val winScriptFileContent = winScriptFile.readText(Charsets.UTF_8)
+                    if (!winScriptFileContent.contains(patchedFileStartMarker)) {
+                        project.logger.debug("Patch $winScriptFile")
+                        val newWinScriptFileContent = winScriptFileContent.replace(winPatchPlaceHolder,
+                                if (winScriptFileContent.contains("\r\n")) {
+                                    winJvmScript.replace("\n", "\r\n")
+                                } else {
+                                    winJvmScript
+                                } + winPatchPlaceHolder)
+                        winScriptFile.writeText(newWinScriptFileContent, Charsets.UTF_8)
+                        project.logger.debug("$winScriptFile patched")
+                    } else {
+                        project.logger.debug("$winScriptFile is up-to-date")
+                    }
                 }
             }
         }

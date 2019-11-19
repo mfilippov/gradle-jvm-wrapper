@@ -42,7 +42,10 @@ fun prepareWrapper(projectRoot: File) {
             .withArguments(":wrapper")
             .withPluginClasspath()
             .build()
-    wrapperResult.task(":wrapper")?.outcome.shouldBe(TaskOutcome.SUCCESS)
+    val result = wrapperResult.task(":wrapper")?.outcome
+            if (result != TaskOutcome.SUCCESS) {
+                println("test")
+            }
 }
 
 fun <T> T.shouldBe(expectedValue: T, message: String? = null) {
