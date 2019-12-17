@@ -1,5 +1,5 @@
 # Gradle JVM Wrapper plugin
-To use it, you need to add the plugin in your Gradle file.
+To use it, you need to add the plugin to your Gradle file.
 
 Groovy edition:
 ```groovy
@@ -13,8 +13,8 @@ plugins {
   id("me.filippov.gradle.jvm.wrapper") version "0.9.2"
 }
 ```
-After that you could call Gradle task `wrapper` to setup wrapper and update command-line scripts.
-By default plugin using Amazon Coretto 11. You could configure for your JVM distribution:
+After that you should call `wrapper` Gradle task to setup a wrapper and update the command-line scripts.
+By default the plugin uses Amazon Coretto 11. You can configure it for your JVM distribution:
 
 Groovy edition:
 ```groovy
