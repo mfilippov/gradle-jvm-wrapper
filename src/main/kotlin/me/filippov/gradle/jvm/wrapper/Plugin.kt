@@ -43,6 +43,10 @@ class Plugin : Plugin<Project> {
                         JVM_TEMP_FILE=${"$"}BUILD_DIR/$macJvmFile
                         JVM_URL=${cfg.macJvmUrl}
                         JVM_TARGET_DIR=${"$"}BUILD_DIR/gradle-jvm/${getJvmDirName(cfg.macJvmUrl)}
+                    elif [ "${"$"}cygwin" = "true" ] || [ "${"$"}msys" = "true" ]; then
+                        JVM_TEMP_FILE=${"$"}BUILD_DIR/$windowsJvmFile
+                        JVM_URL=https://d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-windows-x64.zip
+                        JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.windowsJvmUrl)}
                     else
                         JVM_TEMP_FILE=${"$"}BUILD_DIR/$linuxJvmFile
                         JVM_URL=${cfg.linuxJvmUrl}
@@ -74,7 +78,11 @@ class Plugin : Plugin<Project> {
                       rm -rf "${"$"}JVM_TARGET_DIR"
                       mkdir -p "${"$"}JVM_TARGET_DIR"
             
-                      tar -x -f "${"$"}JVM_TEMP_FILE" -C "${"$"}JVM_TARGET_DIR"
+                      if [ "${"$"}cygwin" = "true" ] || [ "${"$"}msys" = "true" ]; then
+                          unzip "${"$"}JVM_TEMP_FILE" -d "${"$"}JVM_TARGET_DIR"
+                      else
+                          tar -x -f "${"$"}JVM_TEMP_FILE" -C "${"$"}JVM_TARGET_DIR"
+                      fi
                       rm -f "${"$"}JVM_TEMP_FILE"
             
                       echo "${"$"}JVM_URL" >"${"$"}JVM_TARGET_DIR/.flag"
