@@ -1,6 +1,6 @@
 plugins {
     id("com.gradle.plugin-publish") version "0.10.1"
-    id("me.filippov.gradle.jvm.wrapper") version("0.9.1")
+    id("me.filippov.gradle.jvm.wrapper") version("0.9.2")
     `java-gradle-plugin`
     kotlin("jvm") version "1.3.50"
 }
@@ -27,7 +27,7 @@ pluginBundle {
     website = "https://github.com/mfilippov/gradle-jvm-wrapper"
     vcsUrl = "https://github.com/mfilippov/gradle-jvm-wrapper"
     description = "Allows using gradle wrapper with embedded Java"
-    version = "0.9.2"
+    version = "0.9.3"
 
     (plugins) {
         "jvm-wrapper-plugin" {
