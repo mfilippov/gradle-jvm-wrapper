@@ -66,7 +66,7 @@ class Plugin : Plugin<Project> {
                       if command -v curl >/dev/null 2>&1; then
                           if [ -t 1 ]; then CURL_PROGRESS="--progress-bar"; else CURL_PROGRESS="--silent --show-error"; fi
                           # shellcheck disable=SC2086
-                          curl ${"$"}CURL_PROGRESS --output "${"$"}{JVM_TEMP_FILE}" "${"$"}JVM_URL"
+                          curl ${"$"}CURL_PROGRESS -L --output "${"$"}{JVM_TEMP_FILE}" "${"$"}JVM_URL"
                       elif command -v wget >/dev/null 2>&1; then
                           if [ -t 1 ]; then WGET_PROGRESS=""; else WGET_PROGRESS="-nv"; fi
                           wget ${"$"}WGET_PROGRESS -O "${"$"}{JVM_TEMP_FILE}" "${"$"}JVM_URL"
