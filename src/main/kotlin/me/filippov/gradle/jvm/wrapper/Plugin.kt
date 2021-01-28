@@ -37,7 +37,7 @@ class Plugin : Plugin<Project> {
             project.afterEvaluate {
                 val unixJvmScript = """
                     # $patchedFileStartMarker
-                    BUILD_DIR=${"$"}APP_HOME/build
+                    BUILD_DIR="${"$"}APP_HOME/${cfg.buildDir}"
             
                     if [ "${"$"}darwin" = "true" ]; then
                         JVM_TEMP_FILE=${"$"}BUILD_DIR/$macJvmFile
@@ -45,7 +45,7 @@ class Plugin : Plugin<Project> {
                         JVM_TARGET_DIR=${"$"}BUILD_DIR/gradle-jvm/${getJvmDirName(cfg.macJvmUrl)}
                     elif [ "${"$"}cygwin" = "true" ] || [ "${"$"}msys" = "true" ]; then
                         JVM_TEMP_FILE=${"$"}BUILD_DIR/$windowsJvmFile
-                        JVM_URL=https://d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-windows-x64.zip
+                        JVM_URL=${cfg.windowsJvmUrl}
                         JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.windowsJvmUrl)}
                     else
                         JVM_TEMP_FILE=${"$"}BUILD_DIR/$linuxJvmFile
@@ -112,7 +112,7 @@ class Plugin : Plugin<Project> {
         
                     setlocal
         
-                    set BUILD_DIR=%APP_HOME%build\
+                    set BUILD_DIR=%APP_HOME%${cfg.buildDir.replace("/", "\\")}\
                     set JVM_TARGET_DIR=%BUILD_DIR%gradle-jvm\${getJvmDirName(cfg.windowsJvmUrl)}\
                     
                     set JVM_TEMP_FILE=$windowsJvmFile
