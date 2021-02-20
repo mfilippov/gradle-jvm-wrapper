@@ -1,17 +1,13 @@
 package me.filippov.gradle.jvm.wrapper
 
-import org.junit.Rule
-import org.junit.Test
-import org.junit.rules.TemporaryFolder
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 
 class PluginTest {
-    @Rule
-    @JvmField
-    val testProjectDir = TemporaryFolder()
-
     @Test
-    fun smoke() {
-        val projectRoot = testProjectDir.newFolder("folder with space")
+    fun smoke(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("folder with space").toFile()
         projectRoot.mkdirs()
         withBuildScript(projectRoot) { """
             plugins {
@@ -63,7 +59,7 @@ class PluginTest {
         resultAfterJavaUpdate.stderr.shouldBeEmpty("Invalid output: \n" + resultWhenJavaNotExists.stderr)
         resultAfterJavaUpdate.exitCode.shouldBe(0)
 
-        val jdkDirs = projectRoot.resolve("build").resolve("gradle-jvm").list()
+        val jdkDirs = projectRoot.resolve("build").resolve("gradle-jvm").list()!!
         jdkDirs.size.shouldBe(2)
     }
 }

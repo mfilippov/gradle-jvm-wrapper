@@ -2,7 +2,8 @@ package me.filippov.gradle.jvm.wrapper
 
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import java.io.File
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -49,17 +50,17 @@ fun prepareWrapper(projectRoot: File) {
 }
 
 fun <T> T.shouldBe(expectedValue: T, message: String? = null) {
-    Assert.assertEquals(message, expectedValue, this)
+    assertEquals(expectedValue, this, message)
 }
 
 fun String.shouldContain(expectedValue: String, message: String? = null) {
-    Assert.assertTrue(message, this.contains(expectedValue))
+    assertTrue(this.contains(expectedValue), message)
 }
 
 fun String.shouldBeEmpty(message: String? = null) {
-    Assert.assertTrue(message, this.isEmpty())
+    assertTrue(this.isEmpty(), message)
 }
 
 fun Boolean.shouldBeTrue(message: String? = null) {
-    Assert.assertTrue(message, this)
+    assertTrue(this, message)
 }
