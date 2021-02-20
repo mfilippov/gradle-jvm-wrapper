@@ -82,17 +82,22 @@ esac
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
+
 # GRADLE JVM WRAPPER START MARKER
-BUILD_DIR=$APP_HOME/build
+BUILD_DIR="$APP_HOME/build"
 
 if [ "$darwin" = "true" ]; then
     JVM_TEMP_FILE=$BUILD_DIR/jvm-macosx-x64.tar.gz
-    JVM_URL=https://d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-macosx-x64.tar.gz
-    JVM_TARGET_DIR=$BUILD_DIR/gradle-jvm/amazon-corretto-11.0.4.11.1-macosx-x64-cc08dc
+    JVM_URL=https://corretto.aws/downloads/resources/11.0.10.9.1/amazon-corretto-11.0.10.9.1-macosx-x64.tar.gz
+    JVM_TARGET_DIR=$BUILD_DIR/gradle-jvm/amazon-corretto-11.0.10.9.1-macosx-x64-788451
+elif [ "$cygwin" = "true" ] || [ "$msys" = "true" ]; then
+    JVM_TEMP_FILE=$BUILD_DIR/jvm-windows-x64.zip
+    JVM_URL=https://corretto.aws/downloads/resources/11.0.10.9.1/amazon-corretto-11.0.10.9.1-windows-x64-jdk.zip
+    JVM_TARGET_DIR=$BUILD_DIR/amazon-corretto-11.0.10.9.1-windows-x64-jdk-066b63
 else
     JVM_TEMP_FILE=$BUILD_DIR/jvm-linux-x64.tar.gz
-    JVM_URL=https://d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-linux-x64.tar.gz
-    JVM_TARGET_DIR=$BUILD_DIR/gradle-jvm/amazon-corretto-11.0.4.11.1-linux-x64-a8fc5f
+    JVM_URL=https://corretto.aws/downloads/resources/11.0.10.9.1/amazon-corretto-11.0.10.9.1-linux-x64.tar.gz
+    JVM_TARGET_DIR=$BUILD_DIR/gradle-jvm/amazon-corretto-11.0.10.9.1-linux-x64-24c051
 fi
 
 set -e
@@ -108,7 +113,7 @@ else
   if command -v curl >/dev/null 2>&1; then
       if [ -t 1 ]; then CURL_PROGRESS="--progress-bar"; else CURL_PROGRESS="--silent --show-error"; fi
       # shellcheck disable=SC2086
-      curl $CURL_PROGRESS --output "${JVM_TEMP_FILE}" "$JVM_URL"
+      curl $CURL_PROGRESS -L --output "${JVM_TEMP_FILE}" "$JVM_URL"
   elif command -v wget >/dev/null 2>&1; then
       if [ -t 1 ]; then WGET_PROGRESS=""; else WGET_PROGRESS="-nv"; fi
       wget $WGET_PROGRESS -O "${JVM_TEMP_FILE}" "$JVM_URL"
@@ -120,14 +125,18 @@ else
   rm -rf "$JVM_TARGET_DIR"
   mkdir -p "$JVM_TARGET_DIR"
 
-  tar -x -f "$JVM_TEMP_FILE" -C "$JVM_TARGET_DIR"
+  if [ "$cygwin" = "true" ] || [ "$msys" = "true" ]; then
+      unzip "$JVM_TEMP_FILE" -d "$JVM_TARGET_DIR"
+  else
+      tar -x -f "$JVM_TEMP_FILE" -C "$JVM_TARGET_DIR"
+  fi
   rm -f "$JVM_TEMP_FILE"
 
   echo "$JVM_URL" >"$JVM_TARGET_DIR/.flag"
 fi
 
 JAVA_HOME=
-for d in "$JVM_TARGET_DIR" "$JVM_TARGET_DIR"/* $JVM_TARGET_DIR/Contents/Home $JVM_TARGET_DIR/*/Contents/Home; do
+for d in "$JVM_TARGET_DIR" "$JVM_TARGET_DIR"/* "$JVM_TARGET_DIR"/Contents/Home "$JVM_TARGET_DIR"/*/Contents/Home; do
   if [ -e "$d/bin/java" ]; then
     JAVA_HOME="$d"
   fi
@@ -191,6 +200,7 @@ fi
 if [ "$cygwin" = "true" -o "$msys" = "true" ] ; then
     APP_HOME=`cygpath --path --mixed "$APP_HOME"`
     CLASSPATH=`cygpath --path --mixed "$CLASSPATH"`
+
     JAVACMD=`cygpath --unix "$JAVACMD"`
 
     # We build the pattern for arguments to be converted via cygpath
@@ -216,19 +226,19 @@ if [ "$cygwin" = "true" -o "$msys" = "true" ] ; then
         else
             eval `echo args$i`="\"$arg\""
         fi
-        i=$((i+1))
+        i=`expr $i + 1`
     done
     case $i in
-        (0) set -- ;;
-        (1) set -- "$args0" ;;
-        (2) set -- "$args0" "$args1" ;;
-        (3) set -- "$args0" "$args1" "$args2" ;;
-        (4) set -- "$args0" "$args1" "$args2" "$args3" ;;
-        (5) set -- "$args0" "$args1" "$args2" "$args3" "$args4" ;;
-        (6) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" ;;
-        (7) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" ;;
-        (8) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" ;;
-        (9) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" "$args8" ;;
+        0) set -- ;;
+        1) set -- "$args0" ;;
+        2) set -- "$args0" "$args1" ;;
+        3) set -- "$args0" "$args1" "$args2" ;;
+        4) set -- "$args0" "$args1" "$args2" "$args3" ;;
+        5) set -- "$args0" "$args1" "$args2" "$args3" "$args4" ;;
+        6) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" ;;
+        7) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" ;;
+        8) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" ;;
+        9) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" "$args8" ;;
     esac
 fi
 
@@ -237,14 +247,9 @@ save () {
     for i do printf %s\\n "$i" | sed "s/'/'\\\\''/g;1s/^/'/;\$s/\$/' \\\\/" ; done
     echo " "
 }
-APP_ARGS=$(save "$@")
+APP_ARGS=`save "$@"`
 
 # Collect all arguments for the java command, following the shell quoting and substitution rules
 eval set -- $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS "\"-Dorg.gradle.appname=$APP_BASE_NAME\"" -classpath "\"$CLASSPATH\"" org.gradle.wrapper.GradleWrapperMain "$APP_ARGS"
-
-# by default we should be in the correct project dir, but when run from Finder on Mac, the cwd is wrong
-if [ "$(uname)" = "Darwin" ] && [ "$HOME" = "$PWD" ]; then
-  cd "$(dirname "$0")"
-fi
 
 exec "$JAVACMD" "$@"
