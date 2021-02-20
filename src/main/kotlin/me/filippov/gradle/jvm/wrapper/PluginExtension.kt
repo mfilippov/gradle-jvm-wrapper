@@ -1,8 +1,8 @@
 package me.filippov.gradle.jvm.wrapper
 
 open class PluginExtension {
-	var buildDir = "build"
-    var windowsJvmUrl = "https://d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-windows-x64.zip"
-    var linuxJvmUrl = "https://d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-linux-x64.tar.gz"
-    var macJvmUrl = "https://d3pxv6yz143wms.cloudfront.net/11.0.4.11.1/amazon-corretto-11.0.4.11.1-macosx-x64.tar.gz"
+    var buildDir = "build"
+    var windowsJvmUrl = "https://corretto.aws/downloads/resources/11.0.10.9.1/amazon-corretto-11.0.10.9.1-windows-x64-jdk.zip"
+    var linuxJvmUrl = "https://corretto.aws/downloads/resources/11.0.10.9.1/amazon-corretto-11.0.10.9.1-linux-x64.tar.gz"
+    var macJvmUrl = "https://corretto.aws/downloads/resources/11.0.10.9.1/amazon-corretto-11.0.10.9.1-macosx-x64.tar.gz"
 }
