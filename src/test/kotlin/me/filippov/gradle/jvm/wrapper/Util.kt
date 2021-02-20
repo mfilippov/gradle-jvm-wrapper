@@ -25,7 +25,7 @@ fun gradlew(projectRoot: File, task: String): TaskResult {
     val workingDirectory = File(System.getProperty("user.dir"))
     val processBuilder = ProcessBuilder(
             projectRoot.resolve(wrapperScriptFileName).absolutePath, "--include-build",
-            workingDirectory.absolutePath, ":$task").directory(projectRoot)
+            workingDirectory.absolutePath, "--no-daemon", ":$task").directory(projectRoot)
     val process = processBuilder.start()
     val stdout = process.inputStream.bufferedReader().readText()
     val stderr = process.errorStream.bufferedReader().readText()

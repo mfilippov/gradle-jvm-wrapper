@@ -61,5 +61,12 @@ class PluginTest {
 
         val jdkDirs = projectRoot.resolve("build").resolve("gradle-jvm").list()!!
         jdkDirs.size.shouldBe(2)
+        repeat((0..30).count()) {
+            if (!projectRoot.exists()) {
+                return@repeat
+            }
+            Thread.sleep(1000)
+            projectRoot.deleteRecursively()
+        }
     }
 }
