@@ -1,17 +1,22 @@
 plugins {
-    id("com.gradle.plugin-publish") version "0.10.1"
-    id("me.filippov.gradle.jvm.wrapper") version("0.9.2")
+    id("com.gradle.plugin-publish") version "0.13.0"
+    id("me.filippov.gradle.jvm.wrapper") version("0.9.3")
     `java-gradle-plugin`
-    kotlin("jvm") version "1.3.50"
+    kotlin("jvm") version "1.4.30"
 }
 
 repositories {
     mavenCentral()
 }
 
+
 dependencies {
-    implementation(kotlin("stdlib"))
-    testImplementation("junit:junit:4.12")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.1")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.1")
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
 
 gradlePlugin {
@@ -27,7 +32,7 @@ pluginBundle {
     website = "https://github.com/mfilippov/gradle-jvm-wrapper"
     vcsUrl = "https://github.com/mfilippov/gradle-jvm-wrapper"
     description = "Allows using gradle wrapper with embedded Java"
-    version = "0.9.3"
+    version = "0.10.0"
 
     (plugins) {
         "jvm-wrapper-plugin" {
