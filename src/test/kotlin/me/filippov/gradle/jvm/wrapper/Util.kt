@@ -3,14 +3,13 @@ package me.filippov.gradle.jvm.wrapper
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import java.io.File
 import java.util.*
 import java.util.concurrent.TimeUnit
 
-val isWindows = System.getProperty("os.name").toLowerCase(Locale.ENGLISH).startsWith("windows")
-val isMac = System.getProperty("os.name").toLowerCase(Locale.ENGLISH).startsWith("mac")
-val isLinux = System.getProperty("os.name").toLowerCase(Locale.ENGLISH).startsWith("linux")
+val isWindows = System.getProperty("os.name").lowercase(Locale.ENGLISH).startsWith("windows")
+val isMac = System.getProperty("os.name").lowercase(Locale.ENGLISH).startsWith("mac")
+val isLinux = System.getProperty("os.name").lowercase(Locale.ENGLISH).startsWith("linux")
 
 val wrapperScriptFileName = when {
     isWindows -> "gradlew.bat"
@@ -25,7 +24,8 @@ fun gradlew(projectRoot: File, task: String): TaskResult {
     val workingDirectory = File(System.getProperty("user.dir"))
     val processBuilder = ProcessBuilder(
             projectRoot.resolve(wrapperScriptFileName).absolutePath, "--include-build",
-            workingDirectory.absolutePath, "--no-daemon", ":$task").directory(projectRoot)
+            workingDirectory.absolutePath, "-Dkotlin.compiler.execution.strategy=in-process", "--no-daemon", ":$task")
+        .directory(projectRoot)
     val process = processBuilder.start()
     val stdout = process.inputStream.bufferedReader().readText()
     val stderr = process.errorStream.bufferedReader().readText()
@@ -39,14 +39,13 @@ fun withBuildScript(projectRoot: File, withContent: () -> String) {
 
 fun prepareWrapper(projectRoot: File) {
     val wrapperResult = GradleRunner.create()
-            .withProjectDir(projectRoot)
-            .withArguments(":wrapper")
-            .withPluginClasspath()
-            .build()
+        .withProjectDir(projectRoot)
+        .withArguments(":wrapper")
+        .withPluginClasspath().build()
     val result = wrapperResult.task(":wrapper")?.outcome
-            if (result != TaskOutcome.SUCCESS) {
-                println("test")
-            }
+    if (result != TaskOutcome.SUCCESS) {
+        println("test")
+    }
 }
 
 fun <T> T.shouldBe(expectedValue: T, message: String? = null) {
@@ -54,13 +53,17 @@ fun <T> T.shouldBe(expectedValue: T, message: String? = null) {
 }
 
 fun String.shouldContain(expectedValue: String, message: String? = null) {
-    assertTrue(this.contains(expectedValue), message)
+    assert(this.contains(expectedValue)){  message ?: "String '$this' not contains '$expectedValue'" }
+}
+
+fun String.shouldNotContain(expectedValue: String, message: String? = null) {
+    assert(!this.contains(expectedValue)){  message ?: "String '$this' not contains '$expectedValue'" }
 }
 
 fun String.shouldBeEmpty(message: String? = null) {
-    assertTrue(this.isEmpty(), message)
+    assert(this.isEmpty()) { message ?: "String '$this' is not empty" }
 }
 
 fun Boolean.shouldBeTrue(message: String? = null) {
-    assertTrue(this, message)
+    assert(this) { message ?: "Value should be true" }
 }
