@@ -13,6 +13,10 @@ class PluginTest {
             plugins {
               id("me.filippov.gradle.jvm.wrapper")
             }
+            jvmWrapper {
+                winJvmInstallDir = "build\\test-temp-dir\\gradle-jvm"
+                unixJvmInstallDir = "build/test-temp-dir/gradle-jvm"
+            }
             tasks.register("hello") {
                 doLast {
                     println("Hello world!")
@@ -23,17 +27,28 @@ class PluginTest {
         prepareWrapper(projectRoot)
         val resultWhenJavaNotExists = gradlew(projectRoot, "hello")
 
-        resultWhenJavaNotExists.stdout.shouldContain("Hello world!", "Invalid output: \n" + resultWhenJavaNotExists.stdout)
-        resultWhenJavaNotExists.stderr.shouldBeEmpty("Invalid output: \n" + resultWhenJavaNotExists.stderr)
+        resultWhenJavaNotExists.stdout.shouldContain("Down",
+            "'Down' not found in output:\nSTDOUT:\n${resultWhenJavaNotExists.stdout}\nSTDERR:\n${resultWhenJavaNotExists.stderr}\n"
+        )
+
+        resultWhenJavaNotExists.stdout.shouldContain("Hello world!",
+            "'Hello world!' not found in output:\nSTDOUT:\n${resultWhenJavaNotExists.stdout}\nSTDERR:\n${resultWhenJavaNotExists.stderr}\n"
+        )
+        resultWhenJavaNotExists.stderr.shouldBeEmpty("Non empty stderr:\n" + resultWhenJavaNotExists.stderr)
         resultWhenJavaNotExists.exitCode.shouldBe(0)
 
-        projectRoot.resolve("build").resolve("gradle-jvm").exists().shouldBeTrue()
+        projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm").exists().shouldBeTrue()
 
         val resultWhenJavaExists = gradlew(projectRoot, "hello")
 
-        resultWhenJavaExists.stdout.shouldContain("Hello world!", "Invalid output: \n" + resultWhenJavaNotExists.stdout)
-        resultWhenJavaExists.stderr.shouldBeEmpty("Invalid output: \n" + resultWhenJavaNotExists.stderr)
+        resultWhenJavaExists.stdout.shouldContain("Hello world!",
+            "'Hello world!' not found in output:\nSTDOUT:\n${resultWhenJavaExists.stdout}\nSTDERR:\n${resultWhenJavaExists.stderr}\n")
+        resultWhenJavaExists.stdout.shouldNotContain("Down",
+            "'Down' not found in output:\nSTDOUT:\n${resultWhenJavaExists.stdout}\nSTDERR:\n${resultWhenJavaExists.stderr}\n")
+        resultWhenJavaExists.stderr.shouldBeEmpty("Non empty stderr:\n" + resultWhenJavaExists.stderr)
         resultWhenJavaExists.exitCode.shouldBe(0)
+
+        val absJvmDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm")
 
         withBuildScript(projectRoot) { """
             plugins {
@@ -41,9 +56,13 @@ class PluginTest {
             }
 
             jvmWrapper {
-                linuxJvmUrl = "https://d3pxv6yz143wms.cloudfront.net/8.232.09.1/amazon-corretto-8.232.09.1-linux-x64.tar.gz"
-                macJvmUrl = "https://d3pxv6yz143wms.cloudfront.net/8.232.09.1/amazon-corretto-8.232.09.1-macosx-x64.tar.gz"
-                windowsJvmUrl ="https://d3pxv6yz143wms.cloudfront.net/8.232.09.1/amazon-corretto-8.232.09.1-windows-x86-jdk.zip"
+                winJvmInstallDir = "${absJvmDir.canonicalPath.replace("\\", "\\\\")}"
+                unixJvmInstallDir = "${absJvmDir.canonicalPath.replace("\\", "\\\\")}"
+                linuxAarch64JvmUrl = "https://download.oracle.com/java/18/archive/jdk-18.0.1.1_linux-aarch64_bin.tar.gz"
+                linuxX64JvmUrl = "https://download.oracle.com/java/18/archive/jdk-18.0.1.1_linux-x64_bin.tar.gz"
+                macAarch64JvmUrl = "https://download.oracle.com/java/18/archive/jdk-18.0.1.1_macos-aarch64_bin.tar.gz"
+                macX64JvmUrl = "https://download.oracle.com/java/18/archive/jdk-18.0.1.1_macos-x64_bin.tar.gz"
+                windowsX64JvmUrl ="https://download.oracle.com/java/18/archive/jdk-18.0.1.1_windows-x64_bin.zip"
             }
             
             tasks.register("newHello") {
@@ -55,11 +74,14 @@ class PluginTest {
         prepareWrapper(projectRoot)
 
         val resultAfterJavaUpdate = gradlew(projectRoot, "newHello")
-        resultAfterJavaUpdate.stdout.shouldContain("Hello new world!", "Invalid output: \n" + resultWhenJavaNotExists.stdout)
-        resultAfterJavaUpdate.stderr.shouldBeEmpty("Invalid output: \n" + resultWhenJavaNotExists.stderr)
+        resultAfterJavaUpdate.stdout.shouldContain("Hello new world!",
+            "'Hello new world!' not found in output:\nSTDOUT:\n${resultAfterJavaUpdate.stdout}\nSTDERR:\n${resultAfterJavaUpdate.stderr}\n")
+        resultAfterJavaUpdate.stdout.shouldContain("Down",
+            "'Down' not found in output:\nSTDOUT:\n${resultAfterJavaUpdate.stdout}\nSTDERR:\n${resultAfterJavaUpdate.stderr}\n")
+        resultAfterJavaUpdate.stderr.shouldBeEmpty("Non empty stderr:\n" + resultAfterJavaUpdate.stderr)
         resultAfterJavaUpdate.exitCode.shouldBe(0)
 
-        val jdkDirs = projectRoot.resolve("build").resolve("gradle-jvm").list()!!
+        val jdkDirs = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm").list()!!
         jdkDirs.size.shouldBe(2)
         repeat((0..30).count()) {
             if (!projectRoot.exists()) {

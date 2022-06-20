@@ -1,8 +1,11 @@
 package me.filippov.gradle.jvm.wrapper
 
 open class PluginExtension {
-    var buildDir = "build"
-    var windowsJvmUrl = "https://corretto.aws/downloads/resources/11.0.10.9.1/amazon-corretto-11.0.10.9.1-windows-x64-jdk.zip"
-    var linuxJvmUrl = "https://corretto.aws/downloads/resources/11.0.10.9.1/amazon-corretto-11.0.10.9.1-linux-x64.tar.gz"
-    var macJvmUrl = "https://corretto.aws/downloads/resources/11.0.10.9.1/amazon-corretto-11.0.10.9.1-macosx-x64.tar.gz"
+    var winJvmInstallDir: String = "%LOCALAPPDATA%\\gradle-jvm"
+    var unixJvmInstallDir: String = "${"$"}{HOME}/.local/share/gradle-jvm"
+    var windowsX64JvmUrl = "https://download.oracle.com/java/17/archive/jdk-17.0.3.1_windows-x64_bin.zip"
+    var linuxAarch64JvmUrl = "https://download.oracle.com/java/17/archive/jdk-17.0.3.1_linux-aarch64_bin.tar.gz"
+    var linuxX64JvmUrl = "https://download.oracle.com/java/17/archive/jdk-17.0.3.1_linux-x64_bin.tar.gz"
+    var macAarch64JvmUrl = "https://download.oracle.com/java/17/archive/jdk-17.0.3.1_macos-aarch64_bin.tar.gz"
+    var macX64JvmUrl = "https://download.oracle.com/java/17/archive/jdk-17.0.3.1_macos-x64_bin.tar.gz"
 }
