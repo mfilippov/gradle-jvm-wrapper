@@ -38,7 +38,7 @@ set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
 @rem GRADLE JVM WRAPPER START MARKER
 
 setlocal
-set BUILD_DIR=build\test-temp-dir\gradle-jvm
+set BUILD_DIR=build\gradle-jvm
 set JVM_TARGET_DIR=%BUILD_DIR%\jdk-17.0.3.1_windows-x64_bin-d6ede5\
 
 set JVM_TEMP_FILE=gradle-jvm.zip

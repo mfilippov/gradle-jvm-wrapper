@@ -1,6 +1,6 @@
 plugins {
     id("com.gradle.plugin-publish") version "0.13.0"
-    id("me.filippov.gradle.jvm.wrapper") version("0.10.0")
+    id("me.filippov.gradle.jvm.wrapper") version("0.11.0")
     `java-gradle-plugin`
     kotlin("jvm") version "1.5.31"
 }
@@ -17,6 +17,11 @@ dependencies {
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+jvmWrapper {
+    winJvmInstallDir = "build\\gradle-jvm"
+    unixJvmInstallDir = "build/gradle-jvm"
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
