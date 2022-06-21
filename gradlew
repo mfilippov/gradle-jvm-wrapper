@@ -118,7 +118,7 @@ CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
 
 # GRADLE JVM WRAPPER START MARKER
-BUILD_DIR="build/test-temp-dir/gradle-jvm"
+BUILD_DIR="build/gradle-jvm"
 JVM_ARCH=$(uname -m)
 JVM_TEMP_FILE=$BUILD_DIR/gradle-jvm-temp.tar.gz
 if [ "$darwin" = "true" ]; then
@@ -143,11 +143,11 @@ else
      case $JVM_ARCH in
         x86_64)
             JVM_URL=https://download.oracle.com/java/17/archive/jdk-17.0.3.1_linux-x64_bin.tar.gz
-            JVM_TARGET_DIR=$BUILD_DIR/gradle-jvm/jdk-17.0.3.1_linux-x64_bin-9324ae
+            JVM_TARGET_DIR=$BUILD_DIR/jdk-17.0.3.1_linux-x64_bin-9324ae
             ;;
         aarch64)
             JVM_URL=https://download.oracle.com/java/17/archive/jdk-17.0.3.1_linux-aarch64_bin.tar.gz
-            JVM_TARGET_DIR=$BUILD_DIR/gradle-jvm/jdk-17.0.3.1_linux-aarch64_bin-319da6
+            JVM_TARGET_DIR=$BUILD_DIR/jdk-17.0.3.1_linux-aarch64_bin-319da6
             ;;
         *) 
             die "Unknown architecture $JVM_ARCH"
