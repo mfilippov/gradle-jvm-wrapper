@@ -7,6 +7,15 @@ import java.nio.file.Path
 class PluginTest {
     @Test
     fun smoke(@TempDir tempDir: Path) {
+        doSmoke(tempDir, "https://download.oracle.com/java/18/archive/jdk-18.0.1.1_windows-x64_bin.zip")
+    }
+
+    @Test
+    fun smokeWindowsTarGz(@TempDir tempDir: Path) {
+        doSmoke(tempDir, "https://cache-redirector.jetbrains.com/intellij-jbr/jbr-17.0.3-windows-x64-b469.37.tar.gz")
+    }
+
+    private fun doSmoke(tempDir: Path, windowsUrl: String) {
         val projectRoot = tempDir.resolve("folder with space").toFile()
         projectRoot.mkdirs()
         withBuildScript(projectRoot) { """
@@ -62,7 +71,7 @@ class PluginTest {
                 linuxX64JvmUrl = "https://download.oracle.com/java/18/archive/jdk-18.0.1.1_linux-x64_bin.tar.gz"
                 macAarch64JvmUrl = "https://download.oracle.com/java/18/archive/jdk-18.0.1.1_macos-aarch64_bin.tar.gz"
                 macX64JvmUrl = "https://download.oracle.com/java/18/archive/jdk-18.0.1.1_macos-x64_bin.tar.gz"
-                windowsX64JvmUrl ="https://download.oracle.com/java/18/archive/jdk-18.0.1.1_windows-x64_bin.zip"
+                windowsX64JvmUrl ="$windowsUrl"
             }
             
             tasks.register("newHello") {
