@@ -96,11 +96,11 @@ class Plugin : Plugin<Project> {
                       rm -rf "${"$"}JVM_TARGET_DIR"
                       mkdir -p "${"$"}JVM_TARGET_DIR"
             
-                      if [ "${"$"}cygwin" = "true" ] || [ "${"$"}msys" = "true" ]; then
-                          unzip "${"$"}JVM_TEMP_FILE" -d "${"$"}JVM_TARGET_DIR"
-                      else
-                          tar -x -f "${"$"}JVM_TEMP_FILE" -C "${"$"}JVM_TARGET_DIR"
-                      fi
+                      case "${'$'}JVM_URL" in
+                        *".zip") unzip "${"$"}JVM_TEMP_FILE" -d "${"$"}JVM_TARGET_DIR" ;;
+                        *) tar -x -f "${"$"}JVM_TEMP_FILE" -C "${"$"}JVM_TARGET_DIR" ;;
+                      esac
+                      
                       rm -f "${"$"}JVM_TEMP_FILE"
             
                       echo "${"$"}JVM_URL" >"${"$"}JVM_TARGET_DIR/.flag"
@@ -132,8 +132,15 @@ class Plugin : Plugin<Project> {
                     set BUILD_DIR=${cfg.winJvmInstallDir}
                     set JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(cfg.windowsX64JvmUrl)}\
 
-                    set JVM_TEMP_FILE=gradle-jvm.zip
                     set JVM_URL=${cfg.windowsX64JvmUrl.replace("%", "%%")}
+                    
+                    set IS_TAR_GZ=0
+                    set JVM_TEMP_FILE=gradle-jvm.zip
+                    
+                    if /I "%JVM_URL:~-7%"==".tar.gz" (
+                        set IS_TAR_GZ=1
+                        set JVM_TEMP_FILE=gradle-jvm.tar.gz
+                    )
 
                     set POWERSHELL=%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe
 
@@ -166,7 +173,12 @@ class Plugin : Plugin<Project> {
                     if errorlevel 1 goto fail
 
                     echo Extracting %BUILD_DIR%\%JVM_TEMP_FILE% to %JVM_TARGET_DIR%
-                    "%POWERSHELL%" -nologo -noprofile -command "Set-StrictMode -Version 3.0; ${"$"}ErrorActionPreference = \"Stop\"; Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory('..\\%JVM_TEMP_FILE%', '.');"
+                    
+                    if "%IS_TAR_GZ%"=="1" (
+                        tar xf "..\\%JVM_TEMP_FILE%"
+                    ) else (
+                        "%POWERSHELL%" -nologo -noprofile -command "Set-StrictMode -Version 3.0; ${"$"}ErrorActionPreference = \"Stop\"; Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory('..\\%JVM_TEMP_FILE%', '.');"
+                    )
                     if errorlevel 1 goto fail
 
                     DEL /F "..\%JVM_TEMP_FILE%"
