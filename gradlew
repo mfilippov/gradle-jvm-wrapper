@@ -180,11 +180,11 @@ else
   rm -rf "$JVM_TARGET_DIR"
   mkdir -p "$JVM_TARGET_DIR"
 
-  if [ "$cygwin" = "true" ] || [ "$msys" = "true" ]; then
-      unzip "$JVM_TEMP_FILE" -d "$JVM_TARGET_DIR"
-  else
-      tar -x -f "$JVM_TEMP_FILE" -C "$JVM_TARGET_DIR"
-  fi
+  case "$JVM_URL" in
+    *".zip") unzip "$JVM_TEMP_FILE" -d "$JVM_TARGET_DIR" ;;
+    *) tar -x -f "$JVM_TEMP_FILE" -C "$JVM_TARGET_DIR" ;;
+  esac
+  
   rm -f "$JVM_TEMP_FILE"
 
   echo "$JVM_URL" >"$JVM_TARGET_DIR/.flag"

@@ -41,8 +41,15 @@ setlocal
 set BUILD_DIR=build\gradle-jvm
 set JVM_TARGET_DIR=%BUILD_DIR%\jdk-17.0.3.1_windows-x64_bin-d6ede5\
 
-set JVM_TEMP_FILE=gradle-jvm.zip
 set JVM_URL=https://download.oracle.com/java/17/archive/jdk-17.0.3.1_windows-x64_bin.zip
+
+set IS_TAR_GZ=0
+set JVM_TEMP_FILE=gradle-jvm.zip
+
+if /I "%JVM_URL:~-7%"==".tar.gz" (
+    set IS_TAR_GZ=1
+    set JVM_TEMP_FILE=gradle-jvm.tar.gz
+)
 
 set POWERSHELL=%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe
 
@@ -75,7 +82,12 @@ PUSHD "%JVM_TARGET_DIR%"
 if errorlevel 1 goto fail
 
 echo Extracting %BUILD_DIR%\%JVM_TEMP_FILE% to %JVM_TARGET_DIR%
-"%POWERSHELL%" -nologo -noprofile -command "Set-StrictMode -Version 3.0; $ErrorActionPreference = \"Stop\"; Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory('..\\%JVM_TEMP_FILE%', '.');"
+
+if "%IS_TAR_GZ%"=="1" (
+    tar xf "..\\%JVM_TEMP_FILE%"
+) else (
+    "%POWERSHELL%" -nologo -noprofile -command "Set-StrictMode -Version 3.0; $ErrorActionPreference = \"Stop\"; Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory('..\\%JVM_TEMP_FILE%', '.');"
+)
 if errorlevel 1 goto fail
 
 DEL /F "..\%JVM_TEMP_FILE%"

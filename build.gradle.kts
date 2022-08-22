@@ -1,6 +1,6 @@
 plugins {
     id("com.gradle.plugin-publish") version "0.13.0"
-    id("me.filippov.gradle.jvm.wrapper") version("0.11.0")
+    id("me.filippov.gradle.jvm.wrapper") version("0.14.0")
     `java-gradle-plugin`
     kotlin("jvm") version "1.5.31"
 }
@@ -28,6 +28,8 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions {
         jvmTarget = "1.8"
         allWarningsAsErrors = true
+        apiVersion = "1.4"
+        languageVersion = "1.4"
     }
 }
 
@@ -48,7 +50,7 @@ pluginBundle {
     website = "https://github.com/mfilippov/gradle-jvm-wrapper"
     vcsUrl = "https://github.com/mfilippov/gradle-jvm-wrapper"
     description = "Allows using gradle wrapper with embedded Java"
-    version = "0.12.0"
+    version = "0.14.0"
 
     (plugins) {
         "jvm-wrapper-plugin" {
