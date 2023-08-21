@@ -67,7 +67,7 @@ if errorlevel 1 goto fail
 
 echo Downloading %JVM_URL% to %BUILD_DIR%\%JVM_TEMP_FILE%
 if exist "%JVM_TEMP_FILE%" DEL /F "%JVM_TEMP_FILE%"
-"%POWERSHELL%" -nologo -noprofile -Command "Set-StrictMode -Version 3.0; $ErrorActionPreference = \"Stop\"; (New-Object Net.WebClient).DownloadFile('%JVM_URL%', '%JVM_TEMP_FILE%')"
+"%POWERSHELL%" -nologo -noprofile -Command "Set-StrictMode -Version 3.0; $ErrorActionPreference = \"Stop\"; $browser = New-Object Net.WebClient; $browser.Proxy.Credentials =[System.Net.CredentialCache]::DefaultNetworkCredentials; $browser.DownloadFile('%JVM_URL%', '%JVM_TEMP_FILE%')"
 if errorlevel 1 goto fail
 
 POPD
