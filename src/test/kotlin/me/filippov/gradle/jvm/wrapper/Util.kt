@@ -4,12 +4,11 @@ import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import java.io.File
-import java.util.*
 import java.util.concurrent.TimeUnit
 
-val isWindows = System.getProperty("os.name").toLowerCase(Locale.ENGLISH).startsWith("windows")
-val isMac = System.getProperty("os.name").toLowerCase(Locale.ENGLISH).startsWith("mac")
-val isLinux = System.getProperty("os.name").toLowerCase(Locale.ENGLISH).startsWith("linux")
+val isWindows = System.getProperty("os.name").lowercase().startsWith("windows")
+val isMac = System.getProperty("os.name").lowercase().startsWith("mac")
+val isLinux = System.getProperty("os.name").lowercase().startsWith("linux")
 
 val wrapperScriptFileName = when {
     isWindows -> "gradlew.bat"
