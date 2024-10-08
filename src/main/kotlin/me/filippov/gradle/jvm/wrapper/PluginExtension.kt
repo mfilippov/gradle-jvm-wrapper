@@ -2,6 +2,7 @@ package me.filippov.gradle.jvm.wrapper
 
 open class PluginExtension {
     var winJvmInstallDir: String = "%LOCALAPPDATA%\\gradle-jvm"
+    var keepRosetta2: Boolean = false
     var unixJvmInstallDir: String = "${"$"}{HOME}/.local/share/gradle-jvm"
     // https://learn.microsoft.com/en-us/java/openjdk/download#openjdk-25
     var windowsAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-windows-aarch64.zip"

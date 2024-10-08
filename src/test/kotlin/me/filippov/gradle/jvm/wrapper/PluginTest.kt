@@ -18,13 +18,15 @@ class PluginTest {
     private fun doSmoke(tempDir: Path, windowsX64Url: String) {
         val projectRoot = tempDir.resolve("folder with space").toFile()
         projectRoot.mkdirs()
+        val absJvmDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm").absolutePath.replace("\\", "\\\\")
+
         withBuildScript(projectRoot) { """
             plugins {
               id("me.filippov.gradle.jvm.wrapper")
             }
             jvmWrapper {
-                winJvmInstallDir = "build\\test-temp-dir\\gradle-jvm"
-                unixJvmInstallDir = "build/test-temp-dir/gradle-jvm"
+                winJvmInstallDir = "$absJvmDir"
+                unixJvmInstallDir = "$absJvmDir"
             }
             tasks.register("hello") {
                 doLast {
@@ -57,16 +59,14 @@ class PluginTest {
         resultWhenJavaExists.stderr.shouldBeEmpty("Non empty stderr:\n" + resultWhenJavaExists.stderr)
         resultWhenJavaExists.exitCode.shouldBe(0)
 
-        val absJvmDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm")
-
         withBuildScript(projectRoot) { """
             plugins {
               id("me.filippov.gradle.jvm.wrapper")
             }
 
             jvmWrapper {
-                winJvmInstallDir = "${absJvmDir.canonicalPath.replace("\\", "\\\\")}"
-                unixJvmInstallDir = "${absJvmDir.canonicalPath.replace("\\", "\\\\")}"
+                winJvmInstallDir = "$absJvmDir"
+                unixJvmInstallDir = "$absJvmDir"
                 linuxAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-linux-aarch64.tar.gz"
                 linuxX64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-linux-x64.tar.gz"
                 macAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-macos-aarch64.tar.gz"

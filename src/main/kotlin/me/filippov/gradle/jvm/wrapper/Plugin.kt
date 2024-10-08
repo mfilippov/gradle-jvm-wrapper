@@ -34,8 +34,20 @@ class Plugin : Plugin<Project> {
             project.afterEvaluate {
                 val unixJvmScript = """
                     # $patchedFileStartMarker
+                    retry_on_error () {
+                      n="${'$'}1"
+                      shift
+                      for _ in ${'$'}(seq 2 "${'$'}n"); do
+                        "${'$'}@" 2>&1 && return || echo "WARNING: Command '${'$'}1' returned non-zero exit status ${'$'}?, try again"
+                      done
+                      "${'$'}@"
+                    }
+                    KEEP_ROSETTA2=${cfg.keepRosetta2}
                     BUILD_DIR="${cfg.unixJvmInstallDir}"
                     JVM_ARCH=${'$'}(uname -m)
+                    if [ "${"$"}darwin" = "true" ] && ! ${"$"}KEEP_ROSETTA2 && [ "${'$'}(sysctl -n sysctl.proc_translated 2>/dev/null || true)" = "1" ]; then
+                        JVM_ARCH=arm64
+                    fi
                     JVM_TEMP_FILE=${"$"}BUILD_DIR/gradle-jvm-temp.tar.gz
                     if [ "${"$"}darwin" = "true" ]; then
                         case ${"$"}JVM_ARCH in
@@ -73,10 +85,33 @@ class Plugin : Plugin<Project> {
             
                     set -e
             
-                    if [ -e "${"$"}JVM_TARGET_DIR/.flag" ] && [ -n "${'$'}(ls "${"$"}JVM_TARGET_DIR")" ] && [ "x${'$'}(cat "${"$"}JVM_TARGET_DIR/.flag")" = "x${"$"}{JVM_URL}" ]; then
+                    if grep -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null; then
                         # Everything is up-to-date in ${"$"}JVM_TARGET_DIR, do nothing
                         true
                     else
+                    while true; do  # Note: emulates goto
+                      mkdir -p "${"$"}BUILD_DIR"
+                      LOCK_FILE=${"$"}BUILD_DIR/.gradle-jvm-lock.pid
+                      TMP_LOCK_FILE=${"$"}BUILD_DIR/.tmp.${'$'}${'$'}.pid
+                      echo ${'$'}${'$'} >"${"$"}TMP_LOCK_FILE"
+                      while ! ln "${"$"}TMP_LOCK_FILE" "${"$"}LOCK_FILE" 2>/dev/null; do
+                        LOCK_OWNER=${'$'}(cat "${"$"}LOCK_FILE" 2>/dev/null || true)
+                        while [ -n "${"$"}LOCK_OWNER" ] && ps -p "${"$"}LOCK_OWNER" >/dev/null; do
+                          warn "Waiting for the process ${"$"}LOCK_OWNER to finish the JVM bootstrap"
+                          sleep 1
+                          LOCK_OWNER=${'$'}(cat "${"$"}LOCK_FILE" 2>/dev/null || true)
+                          # Hurry up, bootstrap is ready..
+                          if grep -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null; then
+                            break 3  # Note: goto out of the outer if-else block.
+                          fi
+                        done
+                        if [ -n "${"$"}LOCK_OWNER" ] && grep -q -x "${"$"}LOCK_OWNER" "${"$"}LOCK_FILE" 2>/dev/null; then
+                          die "ERROR: The lock file ${"$"}LOCK_FILE still exists on disk after the owner process ${"$"}LOCK_OWNER exited"
+                        fi
+                      done
+                      trap 'rm -f "${"$"}LOCK_FILE"' EXIT
+                      rm "${"$"}TMP_LOCK_FILE"
+                      if ! grep -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null; then
                       echo "Downloading ${"$"}JVM_URL to ${"$"}JVM_TEMP_FILE"
             
                       rm -f "${"$"}JVM_TEMP_FILE"
@@ -84,10 +119,10 @@ class Plugin : Plugin<Project> {
                       if command -v curl >/dev/null 2>&1; then
                           if [ -t 1 ]; then CURL_PROGRESS="--progress-bar"; else CURL_PROGRESS="--silent --show-error"; fi
                           # shellcheck disable=SC2086
-                          curl ${"$"}CURL_PROGRESS -L --output "${"$"}{JVM_TEMP_FILE}" "${"$"}JVM_URL" 2>&1
+                          retry_on_error 5 curl ${"$"}CURL_PROGRESS -L --output "${"$"}{JVM_TEMP_FILE}" "${"$"}JVM_URL"
                       elif command -v wget >/dev/null 2>&1; then
                           if [ -t 1 ]; then WGET_PROGRESS=""; else WGET_PROGRESS="-nv"; fi
-                          wget ${"$"}WGET_PROGRESS -O "${"$"}{JVM_TEMP_FILE}" "${"$"}JVM_URL" 2>&1
+                          retry_on_error 5 wget ${"$"}WGET_PROGRESS -O "${"$"}{JVM_TEMP_FILE}" "${"$"}JVM_URL"
                       else
                           die "ERROR: Please install wget or curl"
                       fi
@@ -104,6 +139,10 @@ class Plugin : Plugin<Project> {
                       rm -f "${"$"}JVM_TEMP_FILE"
             
                       echo "${"$"}JVM_URL" >"${"$"}JVM_TARGET_DIR/.flag"
+                      fi
+                      rm "${"$"}LOCK_FILE"
+                      break
+                    done
                     fi
             
                     JAVA_HOME=
