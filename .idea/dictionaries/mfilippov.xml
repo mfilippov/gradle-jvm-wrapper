@@ -12,6 +12,7 @@
       <w>esac</w>
       <w>getconf</w>
       <w>javacmd</w>
+      <w>mktemp</w>
       <w>nologo</w>
       <w>noncompliant</w>
       <w>noprofile</w>

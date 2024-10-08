@@ -34,94 +34,138 @@ class Plugin : Plugin<Project> {
             project.afterEvaluate {
                 val unixJvmScript = """
                     # $PATCHED_FILE_START_MARKER
-                    BUILD_DIR="${cfg.unixJvmInstallDir}"
-                    JVM_ARCH=${'$'}(uname -m)
-                    JVM_TEMP_FILE=${"$"}BUILD_DIR/gradle-jvm-temp.tar.gz
-                    if [ "${"$"}darwin" = "true" ]; then
+                    is_linux_musl () {
+                      (ldd --version 2>&1 || true) | grep -q musl
+                    }
+                    retry_on_error () {
+                      n="${'$'}1"
+                      shift
+                      for _ in ${'$'}(seq 2 "${'$'}n"); do
+                        "${'$'}@" 2>&1 && return || echo "WARNING: Command '${'$'}1' returned non-zero exit status ${'$'}?, try again"
+                      done
+                      "${'$'}@"
+                    }
+                    KEEP_ROSETTA2=${cfg.keepRosetta2}
+                    TARGET_DIR="${cfg.unixJvmInstallDir}"
+                    JVM_TEMP_FILE=${'$'}(mktemp)
+                    case ${'$'}(uname) in
+                    Darwin)
+                        JVM_ARCH=${'$'}(uname -m)
+                        if ! ${'$'}KEEP_ROSETTA2 && [ "${'$'}(sysctl -n sysctl.proc_translated 2>/dev/null || true)" = "1" ]; then
+                            JVM_ARCH=arm64
+                        fi
                         case ${"$"}JVM_ARCH in
                         x86_64)
                             JVM_URL=${cfg.macX64JvmUrl}
-                            JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.macX64JvmUrl)}
+                            JVM_TARGET_DIR=${"$"}TARGET_DIR/${getJvmDirName(cfg.macX64JvmUrl)}
                             ;;
                         arm64)
                             JVM_URL=${cfg.macAarch64JvmUrl}
-                            JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.macAarch64JvmUrl)}
+                            JVM_TARGET_DIR=${"$"}TARGET_DIR/${getJvmDirName(cfg.macAarch64JvmUrl)}
                             ;;
                         *) 
-                            die "Unknown architecture ${"$"}JVM_ARCH"
+                            die "Unsupported architecture ${"$"}JVM_ARCH"
                             ;;
                         esac
-                    elif [ "${"$"}cygwin" = "true" ] || [ "${"$"}msys" = "true" ]; then
-                        JVM_URL=${cfg.windowsX64JvmUrl}
-                        JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.windowsX64JvmUrl)}
-                    else
-                        JVM_ARCH=${'$'}(linux${'$'}(getconf LONG_BIT) uname -m)
-                         case ${"$"}JVM_ARCH in
+                        ;;
+                    Linux)
+                        JVM_ARCH=${'$'}(linux"${'$'}(getconf LONG_BIT)" uname -m)
+                        case ${"$"}JVM_ARCH in
                             x86_64)
                                 JVM_URL=${cfg.linuxX64JvmUrl}
-                                JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.linuxX64JvmUrl)}
+                                JVM_TARGET_DIR=${"$"}TARGET_DIR/${getJvmDirName(cfg.linuxX64JvmUrl)}
                                 ;;
                             aarch64)
                                 JVM_URL=${cfg.linuxAarch64JvmUrl}
-                                JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.linuxAarch64JvmUrl)}
+                                JVM_TARGET_DIR=${"$"}TARGET_DIR/${getJvmDirName(cfg.linuxAarch64JvmUrl)}
                                 ;;
                             *) 
                                 die "Unknown architecture ${"$"}JVM_ARCH"
                                 ;;
                             esac
-                    fi
-            
-                    set -e
-            
-                    if [ -e "${"$"}JVM_TARGET_DIR/.flag" ] && [ -n "${'$'}(ls "${"$"}JVM_TARGET_DIR")" ] && [ "x${'$'}(cat "${"$"}JVM_TARGET_DIR/.flag")" = "x${"$"}{JVM_URL}" ]; then
-                        # Everything is up-to-date in ${"$"}JVM_TARGET_DIR, do nothing
-                        true
+                            ;;
+                    *)
+                        if [ "${"$"}cygwin" = "true" ] || [ "${"$"}msys" = "true" ]; then
+                            JVM_URL=${cfg.windowsX64JvmUrl}
+                            JVM_TARGET_DIR=${"$"}TARGET_DIR/${getJvmDirName(cfg.windowsX64JvmUrl)}
+                        else
+                            JVM_ARCH=${'$'}(linux"${'$'}(getconf LONG_BIT)" uname -m)
+                             case ${"$"}JVM_ARCH in
+                                x86_64)
+                                    JVM_URL=${cfg.linuxX64JvmUrl}
+                                    JVM_TARGET_DIR=${"$"}TARGET_DIR/${getJvmDirName(cfg.linuxX64JvmUrl)}
+                                    ;;
+                                aarch64)
+                                    JVM_URL=${cfg.linuxAarch64JvmUrl}
+                                    JVM_TARGET_DIR=${"$"}TARGET_DIR/${getJvmDirName(cfg.linuxAarch64JvmUrl)}
+                                    ;;
+                                *) 
+                                    die "Unknown architecture ${"$"}JVM_ARCH"
+                                    ;;
+                                esac
+                        fi
+                        ;;
+                    esac
+                    if grep -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null; then
+                      # Everything is up-to-date in ${'$'}JVM_TARGET_DIR, do nothing
+                      true
                     else
-                      echo "Downloading ${"$"}JVM_URL to ${"$"}JVM_TEMP_FILE"
-            
-                      rm -f "${"$"}JVM_TEMP_FILE"
-                      mkdir -p "${"$"}BUILD_DIR"
-                      if command -v curl >/dev/null 2>&1; then
+                    while true; do  # Note: for goto
+                      mkdir -p "${'$'}TARGET_DIR"
+                      LOCK_FILE="${'$'}TARGET_DIR/.java-cmd-lock.pid"
+                      TMP_LOCK_FILE="${'$'}TARGET_DIR/.tmp.${'$'}${'$'}.pid"
+                      echo ${'$'}${'$'} >"${'$'}TMP_LOCK_FILE"
+                      while ! ln "${'$'}TMP_LOCK_FILE" "${'$'}LOCK_FILE" 2>/dev/null; do
+                        LOCK_OWNER=${'$'}(cat "${'$'}LOCK_FILE" 2>/dev/null || true)
+                        while [ -n "${'$'}LOCK_OWNER" ] && ps -p "${'$'}LOCK_OWNER" >/dev/null; do
+                          warn "Waiting for the process ${'$'}LOCK_OWNER to finish bootstrap java.cmd"
+                          sleep 1
+                          LOCK_OWNER=${'$'}(cat "${'$'}LOCK_FILE" 2>/dev/null || true)
+                          # Hurry up, bootstrap is ready..
+                          if grep -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null; then
+                            break 3  # Note goto out of the outer if-else block.
+                          fi
+                        done
+                        if [ -n "${'$'}LOCK_OWNER" ] && grep -q -x "${'$'}LOCK_OWNER" "${'$'}LOCK_FILE" 2>/dev/null; then
+                          die "ERROR: The lock file ${'$'}LOCK_FILE still exists on disk after the owner process ${'$'}LOCK_OWNER exited"
+                        fi
+                      done
+                      trap 'rm -f \"${'$'}LOCK_FILE\"' EXIT
+                      rm "${'$'}TMP_LOCK_FILE"
+                      if ! grep -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null; then
+                        echo "Downloading ${'$'}JVM_URL to ${'$'}JVM_TEMP_FILE"
+                        rm -f "${'$'}JVM_TEMP_FILE"
+                        if command -v curl >/dev/null 2>&1; then
                           if [ -t 1 ]; then CURL_PROGRESS="--progress-bar"; else CURL_PROGRESS="--silent --show-error"; fi
-                          # shellcheck disable=SC2086
-                          curl ${"$"}CURL_PROGRESS -L --output "${"$"}{JVM_TEMP_FILE}" "${"$"}JVM_URL" 2>&1
-                      elif command -v wget >/dev/null 2>&1; then
+                          retry_on_error 5 curl -L ${'$'}CURL_PROGRESS --output "${'$'}{JVM_TEMP_FILE}" "${'$'}JVM_URL"
+                        elif command -v wget >/dev/null 2>&1; then
                           if [ -t 1 ]; then WGET_PROGRESS=""; else WGET_PROGRESS="-nv"; fi
-                          wget ${"$"}WGET_PROGRESS -O "${"$"}{JVM_TEMP_FILE}" "${"$"}JVM_URL" 2>&1
-                      else
+                          retry_on_error 5 wget ${'$'}WGET_PROGRESS -O "${'$'}{JVM_TEMP_FILE}" "${'$'}JVM_URL"
+                        else
                           die "ERROR: Please install wget or curl"
+                        fi
+                        echo "Extracting ${'$'}JVM_TEMP_FILE to ${'$'}JVM_TARGET_DIR"
+                        rm -rf "${'$'}JVM_TARGET_DIR"
+                        mkdir -p "${'$'}JVM_TARGET_DIR"
+                        tar -x -f "${'$'}JVM_TEMP_FILE" -C "${'$'}JVM_TARGET_DIR"
+                        rm -f "${'$'}JVM_TEMP_FILE"
+                        echo "${'$'}JVM_URL" >"${'$'}JVM_TARGET_DIR/.flag"
                       fi
-            
-                      echo "Extracting ${"$"}JVM_TEMP_FILE to ${"$"}JVM_TARGET_DIR"
-                      rm -rf "${"$"}JVM_TARGET_DIR"
-                      mkdir -p "${"$"}JVM_TARGET_DIR"
-            
-                      case "${'$'}JVM_URL" in
-                        *".zip") unzip "${"$"}JVM_TEMP_FILE" -d "${"$"}JVM_TARGET_DIR" ;;
-                        *) tar -x -f "${"$"}JVM_TEMP_FILE" -C "${"$"}JVM_TARGET_DIR" ;;
-                      esac
-                      
-                      rm -f "${"$"}JVM_TEMP_FILE"
-            
-                      echo "${"$"}JVM_URL" >"${"$"}JVM_TARGET_DIR/.flag"
+                      rm "${'$'}LOCK_FILE"
+                      break
+                    done
                     fi
-            
                     JAVA_HOME=
                     for d in "${"$"}JVM_TARGET_DIR" "${"$"}JVM_TARGET_DIR"/* "${"$"}JVM_TARGET_DIR"/Contents/Home "${"$"}JVM_TARGET_DIR"/*/Contents/Home; do
                       if [ -e "${"$"}d/bin/java" ]; then
                         JAVA_HOME="${"$"}d"
                       fi
                     done
-                    
-                    if [ '!' -e "${"$"}JAVA_HOME/bin/java" ]; then
+                    if [ ! -e "${"$"}JAVA_HOME/bin/java" ]; then
                       die "Unable to find bin/java under ${"$"}JVM_TARGET_DIR"
                     fi
-                    
                     # Make it available for child processes
                     export JAVA_HOME
-            
-                    set +e
-                    
                     # $PATCHED_FILE_END_MARKER
                 """.trimIndent() + "\n\n"
 
