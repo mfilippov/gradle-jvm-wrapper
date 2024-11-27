@@ -23,7 +23,8 @@ plugins {
 }
 
 jvmWrapper {
-    jvmInstallDir = "/my-custom-path/gradle-jvm"
+    unixJvmInstallDir = "${"$"}{HOME}/my-custom-path/gradle-jvm"
+    winJvmInstallDir = "%LOCALAPPDATA%\\gradle-jvm"
     linuxAarch64JvmUrl = "https://corretto.aws/downloads/resources/11.0.9.12.1/amazon-corretto-11.0.9.12.1-linux-aarch64.tar.gz"
     linuxX64JvmUrl = "https://corretto.aws/downloads/latest/amazon-corretto-11-x64-linux-jdk.tar.gz"
     macAarch64JvmUrl = "https://cdn.azul.com/zulu/bin/zulu11.45.27-ca-jdk11.0.10-macosx_aarch64.tar.gz"
@@ -38,7 +39,8 @@ plugins {
 }
 
 jvmWrapper {
-    jvmInstallDir = "/my-custom-path/gradle-jvm"
+    unixJvmInstallDir = "${"$"}{HOME}/my-custom-path/gradle-jvm"
+    winJvmInstallDir = "%LOCALAPPDATA%\\gradle-jvm"
     linuxAarch64JvmUrl = "https://corretto.aws/downloads/resources/11.0.9.12.1/amazon-corretto-11.0.9.12.1-linux-aarch64.tar.gz"
     linuxX64JvmUrl = "https://corretto.aws/downloads/latest/amazon-corretto-11-x64-linux-jdk.tar.gz"
     macAarch64JvmUrl = "https://cdn.azul.com/zulu/bin/zulu11.45.27-ca-jdk11.0.10-macosx_aarch64.tar.gz"
