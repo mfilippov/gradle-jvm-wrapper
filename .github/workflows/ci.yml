@@ -12,11 +12,11 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       - name: Tests
         run: gradlew.bat build
         shell: cmd
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-report-windows
@@ -24,11 +24,11 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       - name: Tests
         run: ./gradlew build
         shell: bash
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-report-linux
@@ -36,11 +36,11 @@ jobs:
   macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       - name: Tests
         run: ./gradlew build
         shell: bash
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-report-macos
