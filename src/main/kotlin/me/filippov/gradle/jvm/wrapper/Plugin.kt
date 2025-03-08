@@ -130,9 +130,18 @@ class Plugin : Plugin<Project> {
 
                     setlocal
                     set BUILD_DIR=${cfg.winJvmInstallDir}
-                    set JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(cfg.windowsX64JvmUrl)}\
 
-                    set JVM_URL=${cfg.windowsX64JvmUrl.replace("%", "%%")}
+                    for /f "tokens=3 delims= " %%A in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v "PROCESSOR_ARCHITECTURE"') do set WIN_ARCH=%%A
+                    if "%WIN_ARCH%" equ "AMD64" (
+                        set JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(cfg.windowsX64JvmUrl)}\
+                        set JVM_URL=${cfg.windowsX64JvmUrl.replace("%", "%%")}
+                    ) else if "%WIN_ARCH%" equ "ARM64" (
+                        set JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(cfg.windowsAarch64JvmUrl)}\
+                        set JVM_URL=${cfg.windowsAarch64JvmUrl.replace("%", "%%")}
+                    ) else (
+                        echo Unknown architecture %WIN_ARCH%
+                        goto fail
+                    )
                     
                     set IS_TAR_GZ=0
                     set JVM_TEMP_FILE=gradle-jvm.zip
