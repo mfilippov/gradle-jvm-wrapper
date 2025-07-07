@@ -1,8 +1,9 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
-    id("com.gradle.plugin-publish") version "0.13.0"
-    id("me.filippov.gradle.jvm.wrapper") version("0.14.0")
-    `java-gradle-plugin`
-    kotlin("jvm") version "1.5.31"
+    id("com.gradle.plugin-publish") version "1.3.1"
+    id("me.filippov.gradle.jvm.wrapper") version("0.15.0")
+    kotlin("jvm") version "2.2.0"
 }
 
 repositories {
@@ -10,13 +11,8 @@ repositories {
 }
 
 dependencies {
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.2")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.8.2")
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    testImplementation("org.junit.jupiter:junit-jupiter:5.13.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 jvmWrapper {
@@ -24,12 +20,17 @@ jvmWrapper {
     unixJvmInstallDir = "build/gradle-jvm"
 }
 
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    kotlinOptions {
-        jvmTarget = "1.8"
-        allWarningsAsErrors = true
-        apiVersion = "1.4"
-        languageVersion = "1.4"
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_1_8)
+        allWarningsAsErrors.set(true)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
     }
 }
 
@@ -37,25 +38,19 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
+version = "0.15.0"
+group = "me.filippov.gradle.jvm.wrapper"
+
 gradlePlugin {
+    website.set("https://github.com/mfilippov/gradle-jvm-wrapper")
+    vcsUrl.set("https://github.com/mfilippov/gradle-jvm-wrapper")
     plugins {
-        create("jvm-wrapper-plugin") {
+        create("jvmWrapperPlugin") {
             id = "me.filippov.gradle.jvm.wrapper"
             implementationClass = "me.filippov.gradle.jvm.wrapper.Plugin"
-        }
-    }
-}
-
-pluginBundle {
-    website = "https://github.com/mfilippov/gradle-jvm-wrapper"
-    vcsUrl = "https://github.com/mfilippov/gradle-jvm-wrapper"
-    description = "Allows using gradle wrapper with embedded Java"
-    version = "0.15.0"
-
-    (plugins) {
-        "jvm-wrapper-plugin" {
             displayName = "Embedded JVM in gradle wrapper plugin"
-            tags = listOf("wrapper", "jvm", "embedded", "plugin")
+            description = "Allows using gradle wrapper with embedded Java"
+            tags.set(listOf("wrapper", "jvm", "embedded", "plugin"))
         }
     }
 }
