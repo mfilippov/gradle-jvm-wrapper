@@ -15,7 +15,7 @@ class PluginTest {
         doSmoke(tempDir, "https://cache-redirector.jetbrains.com/intellij-jbr/jbr-17.0.3-windows-x64-b469.37.tar.gz")
     }
 
-    private fun doSmoke(tempDir: Path, windowsUrl: String) {
+    private fun doSmoke(tempDir: Path, windowsX64Url: String) {
         val projectRoot = tempDir.resolve("folder with space").toFile()
         projectRoot.mkdirs()
         withBuildScript(projectRoot) { """
@@ -67,11 +67,12 @@ class PluginTest {
             jvmWrapper {
                 winJvmInstallDir = "${absJvmDir.canonicalPath.replace("\\", "\\\\")}"
                 unixJvmInstallDir = "${absJvmDir.canonicalPath.replace("\\", "\\\\")}"
-                linuxAarch64JvmUrl = "https://download.oracle.com/java/18/archive/jdk-18.0.1.1_linux-aarch64_bin.tar.gz"
-                linuxX64JvmUrl = "https://download.oracle.com/java/18/archive/jdk-18.0.1.1_linux-x64_bin.tar.gz"
-                macAarch64JvmUrl = "https://download.oracle.com/java/18/archive/jdk-18.0.1.1_macos-aarch64_bin.tar.gz"
-                macX64JvmUrl = "https://download.oracle.com/java/18/archive/jdk-18.0.1.1_macos-x64_bin.tar.gz"
-                windowsX64JvmUrl ="$windowsUrl"
+                linuxAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-21.0.7-linux-aarch64.tar.gz"
+                linuxX64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-21.0.7-linux-x64.tar.gz"
+                macAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-21.0.7-macos-aarch64.tar.gz"
+                macX64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-21.0.7-macos-x64.tar.gz"
+                windowsAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-21.0.7-windows-aarch64.zip"
+                windowsX64JvmUrl ="$windowsX64Url"
             }
             
             tasks.register("newHello") {
