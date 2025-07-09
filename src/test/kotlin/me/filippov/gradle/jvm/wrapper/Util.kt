@@ -24,7 +24,7 @@ fun gradlew(projectRoot: File, task: String): TaskResult {
     val workingDirectory = File(System.getProperty("user.dir"))
     val processBuilder = ProcessBuilder(
             projectRoot.resolve(wrapperScriptFileName).absolutePath, "--include-build",
-            workingDirectory.absolutePath, "-Dkotlin.compiler.execution.strategy=in-process", "--no-daemon", ":$task")
+            workingDirectory.absolutePath, "-Pkotlin.compiler.execution.strategy=in-process", "--no-daemon", ":$task")
         .directory(projectRoot)
     val process = processBuilder.start()
     val stdout = process.inputStream.bufferedReader().readText()
