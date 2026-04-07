@@ -67,11 +67,11 @@ class PluginTest {
             jvmWrapper {
                 winJvmInstallDir = "${absJvmDir.canonicalPath.replace("\\", "\\\\")}"
                 unixJvmInstallDir = "${absJvmDir.canonicalPath.replace("\\", "\\\\")}"
-                linuxAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-21.0.7-linux-aarch64.tar.gz"
-                linuxX64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-21.0.7-linux-x64.tar.gz"
-                macAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-21.0.7-macos-aarch64.tar.gz"
-                macX64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-21.0.7-macos-x64.tar.gz"
-                windowsAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-21.0.7-windows-aarch64.zip"
+                linuxAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-linux-aarch64.tar.gz"
+                linuxX64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-linux-x64.tar.gz"
+                macAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-macos-aarch64.tar.gz"
+                macX64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-macos-x64.tar.gz"
+                windowsAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-windows-aarch64.zip"
                 windowsX64JvmUrl ="$windowsX64Url"
             }
             
