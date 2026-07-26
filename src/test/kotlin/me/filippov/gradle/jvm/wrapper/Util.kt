@@ -80,10 +80,8 @@ fun prepareWrapper(projectRoot: File) {
         .withProjectDir(projectRoot)
         .withArguments(":wrapper")
         .withPluginClasspath().build()
-    val result = wrapperResult.task(":wrapper")?.outcome
-    if (result != TaskOutcome.SUCCESS) {
-        println("test")
-    }
+    wrapperResult.task(":wrapper")?.outcome.shouldBe(TaskOutcome.SUCCESS,
+        "Wrapper generation failed:\n${wrapperResult.output}")
 }
 
 fun <T> T.shouldBe(expectedValue: T, message: String? = null) {
