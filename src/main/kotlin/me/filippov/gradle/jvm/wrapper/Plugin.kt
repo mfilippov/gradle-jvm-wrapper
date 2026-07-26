@@ -1,5 +1,6 @@
 package me.filippov.gradle.jvm.wrapper
 
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.wrapper.Wrapper
@@ -27,11 +28,32 @@ class Plugin : Plugin<Project> {
                 "-" +
                 url.sha256().take(6)
 
+    private fun effectiveSha256(configured: String, url: String) =
+        configured.ifEmpty { PluginExtension.defaultJvmSha256[url] ?: "" }.lowercase()
+
+    private fun validateSha256Properties(cfg: PluginExtension) {
+        val sha256Format = Regex("[0-9a-fA-F]{64}")
+        mapOf(
+            "windowsAarch64JvmSha256" to cfg.windowsAarch64JvmSha256,
+            "windowsX64JvmSha256" to cfg.windowsX64JvmSha256,
+            "linuxAarch64JvmSha256" to cfg.linuxAarch64JvmSha256,
+            "linuxX64JvmSha256" to cfg.linuxX64JvmSha256,
+            "macAarch64JvmSha256" to cfg.macAarch64JvmSha256,
+            "macX64JvmSha256" to cfg.macX64JvmSha256,
+        ).forEach { (name, value) ->
+            if (value.isNotEmpty() && !value.matches(sha256Format)) {
+                throw GradleException(
+                    "jvmWrapper.$name must be a 64-character hexadecimal SHA-256 checksum, got: '$value'")
+            }
+        }
+    }
+
     override fun apply(project: Project) {
         val cfg = project.extensions.create(extensionName, PluginExtension::class.java)
         project.tasks.getByName(wrapperTaskName) {
             val task = it as Wrapper
             project.afterEvaluate {
+                validateSha256Properties(cfg)
                 val unixJvmScript = """
                     # $patchedFileStartMarker
                     retry_on_error () {
@@ -56,12 +78,12 @@ class Plugin : Plugin<Project> {
                         case ${"$"}JVM_ARCH in
                         x86_64)
                             JVM_URL=${cfg.macX64JvmUrl}
-                            JVM_SHA256=${cfg.macX64JvmSha256.lowercase()}
+                            JVM_SHA256=${effectiveSha256(cfg.macX64JvmSha256, cfg.macX64JvmUrl)}
                             JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.macX64JvmUrl)}
                             ;;
                         arm64)
                             JVM_URL=${cfg.macAarch64JvmUrl}
-                            JVM_SHA256=${cfg.macAarch64JvmSha256.lowercase()}
+                            JVM_SHA256=${effectiveSha256(cfg.macAarch64JvmSha256, cfg.macAarch64JvmUrl)}
                             JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.macAarch64JvmUrl)}
                             ;;
                         *) 
@@ -70,19 +92,19 @@ class Plugin : Plugin<Project> {
                         esac
                     elif [ "${"$"}cygwin" = "true" ] || [ "${"$"}msys" = "true" ]; then
                         JVM_URL=${cfg.windowsX64JvmUrl}
-                        JVM_SHA256=${cfg.windowsX64JvmSha256.lowercase()}
+                        JVM_SHA256=${effectiveSha256(cfg.windowsX64JvmSha256, cfg.windowsX64JvmUrl)}
                         JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.windowsX64JvmUrl)}
                     else
                         JVM_ARCH=${'$'}(linux${'$'}(getconf LONG_BIT) uname -m)
                          case ${"$"}JVM_ARCH in
                             x86_64)
                                 JVM_URL=${cfg.linuxX64JvmUrl}
-                                JVM_SHA256=${cfg.linuxX64JvmSha256.lowercase()}
+                                JVM_SHA256=${effectiveSha256(cfg.linuxX64JvmSha256, cfg.linuxX64JvmUrl)}
                                 JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.linuxX64JvmUrl)}
                                 ;;
                             aarch64)
                                 JVM_URL=${cfg.linuxAarch64JvmUrl}
-                                JVM_SHA256=${cfg.linuxAarch64JvmSha256.lowercase()}
+                                JVM_SHA256=${effectiveSha256(cfg.linuxAarch64JvmSha256, cfg.linuxAarch64JvmUrl)}
                                 JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.linuxAarch64JvmUrl)}
                                 ;;
                             *) 
@@ -211,11 +233,11 @@ class Plugin : Plugin<Project> {
                     if "%WIN_ARCH%" equ "AMD64" (
                         set JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(cfg.windowsX64JvmUrl)}\
                         set JVM_URL=${cfg.windowsX64JvmUrl.replace("%", "%%")}
-                        set JVM_SHA256=${cfg.windowsX64JvmSha256.lowercase()}
+                        set JVM_SHA256=${effectiveSha256(cfg.windowsX64JvmSha256, cfg.windowsX64JvmUrl)}
                     ) else if "%WIN_ARCH%" equ "ARM64" (
                         set JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(cfg.windowsAarch64JvmUrl)}\
                         set JVM_URL=${cfg.windowsAarch64JvmUrl.replace("%", "%%")}
-                        set JVM_SHA256=${cfg.windowsAarch64JvmSha256.lowercase()}
+                        set JVM_SHA256=${effectiveSha256(cfg.windowsAarch64JvmSha256, cfg.windowsAarch64JvmUrl)}
                     ) else (
                         echo Unknown architecture %WIN_ARCH%
                         goto fail
