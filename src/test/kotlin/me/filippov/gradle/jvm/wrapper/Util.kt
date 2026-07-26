@@ -5,6 +5,7 @@ import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import java.io.File
 import java.util.*
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
 val isWindows = System.getProperty("os.name").lowercase(Locale.ENGLISH).startsWith("windows")
@@ -20,17 +21,35 @@ val wrapperScriptFileName = when {
 
 data class TaskResult(val exitCode: Int, val stdout: String, val stderr: String)
 
-fun gradlew(projectRoot: File, task: String): TaskResult {
+private fun gradlewProcessBuilder(projectRoot: File, task: String): ProcessBuilder {
     val workingDirectory = File(System.getProperty("user.dir"))
-    val processBuilder = ProcessBuilder(
+    return ProcessBuilder(
             projectRoot.resolve(wrapperScriptFileName).absolutePath, "--include-build",
             workingDirectory.absolutePath, "-Pkotlin.compiler.execution.strategy=in-process", "--no-daemon", ":$task")
         .directory(projectRoot)
-    val process = processBuilder.start()
+}
+
+fun gradlew(projectRoot: File, task: String): TaskResult {
+    val process = gradlewProcessBuilder(projectRoot, task).start()
     val stdout = process.inputStream.bufferedReader().readText()
     val stderr = process.errorStream.bufferedReader().readText()
     if (!process.waitFor(5, TimeUnit.MINUTES)) error("Process timeout error")
     return TaskResult(process.exitValue(), stdout, stderr)
+}
+
+fun gradlewParallel(projectRoot: File, task: String, count: Int): List<TaskResult> {
+    val processes = List(count) { gradlewProcessBuilder(projectRoot, task).start() }
+    val outputs = processes.map { process ->
+        CompletableFuture.supplyAsync { process.inputStream.bufferedReader().readText() } to
+                CompletableFuture.supplyAsync { process.errorStream.bufferedReader().readText() }
+    }
+    return processes.mapIndexed { i, process ->
+        if (!process.waitFor(10, TimeUnit.MINUTES)) {
+            process.destroyForcibly()
+            error("Process timeout error")
+        }
+        TaskResult(process.exitValue(), outputs[i].first.get(), outputs[i].second.get())
+    }
 }
 
 fun withBuildScript(projectRoot: File, withContent: () -> String) {

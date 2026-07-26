@@ -102,6 +102,7 @@ class Plugin : Plugin<Project> {
                           LOCK_OWNER=${'$'}(cat "${"$"}LOCK_FILE" 2>/dev/null || true)
                           # Hurry up, bootstrap is ready..
                           if grep -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null; then
+                            rm -f "${"$"}TMP_LOCK_FILE"
                             break 3  # Note: goto out of the outer if-else block.
                           fi
                         done
@@ -192,49 +193,53 @@ class Plugin : Plugin<Project> {
 
                     set POWERSHELL=%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe
 
-                    if not exist "%JVM_TARGET_DIR%" MD "%JVM_TARGET_DIR%"
-
                     if not exist "%JVM_TARGET_DIR%.flag" goto downloadAndExtractJvm
 
                     set /p CURRENT_FLAG=<"%JVM_TARGET_DIR%.flag"
                     if "%CURRENT_FLAG%" == "%JVM_URL%" goto continueWithJvm
 
                     :downloadAndExtractJvm
-                    
-                    PUSHD "%BUILD_DIR%"
-                    if errorlevel 1 goto fail
 
-                    echo Downloading %JVM_URL% to %BUILD_DIR%\%JVM_TEMP_FILE%
-                    if exist "%JVM_TEMP_FILE%" DEL /F "%JVM_TEMP_FILE%"
-                    "%POWERSHELL%" -nologo -noprofile -Command "Set-StrictMode -Version 3.0; ${"$"}ErrorActionPreference = \"Stop\"; (New-Object Net.WebClient).DownloadFile('%JVM_URL%', '%JVM_TEMP_FILE%')"
-                    if errorlevel 1 goto fail
+                    set DOWNLOAD_AND_EXTRACT_JVM_PS1= ^
+                    Set-StrictMode -Version 3.0; ^
+                    ${'$'}ErrorActionPreference = 'Stop'; ^
+                     ^
+                    ${'$'}createdNew = ${'$'}false; ^
+                    ${'$'}lock = New-Object System.Threading.Mutex(${'$'}true, 'Global\gradle-jvm-wrapper-lock', [ref]${'$'}createdNew); ^
+                    if (-not ${'$'}createdNew) { ^
+                        Write-Host 'Waiting for the other process to finish the JVM bootstrap'; ^
+                        try { [void]${'$'}lock.WaitOne(); } catch [System.Threading.AbandonedMutexException] { } ^
+                    } ^
+                     ^
+                    try { ^
+                        if ((Get-Content '%JVM_TARGET_DIR%.flag' -ErrorAction Ignore) -ne '%JVM_URL%') { ^
+                            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ^
+                            Write-Host 'Downloading %JVM_URL% to %BUILD_DIR%\%JVM_TEMP_FILE%'; ^
+                            [void](New-Item '%BUILD_DIR%' -ItemType Directory -Force); ^
+                            (New-Object Net.WebClient).DownloadFile('%JVM_URL%', '%BUILD_DIR%\%JVM_TEMP_FILE%'); ^
+                             ^
+                            Write-Host 'Extracting %BUILD_DIR%\%JVM_TEMP_FILE% to %JVM_TARGET_DIR%'; ^
+                            if (Test-Path '%JVM_TARGET_DIR%') { ^
+                                Remove-Item '%JVM_TARGET_DIR%' -Recurse -Force; ^
+                            } ^
+                            [void](New-Item '%JVM_TARGET_DIR%' -ItemType Directory -Force); ^
+                            if ('%IS_TAR_GZ%' -eq '1') { ^
+                                tar -x -f '%BUILD_DIR%\%JVM_TEMP_FILE%' -C '%JVM_TARGET_DIR%.'; ^
+                                if (${'$'}LASTEXITCODE -ne 0) { throw 'tar extraction failed'; } ^
+                            } else { ^
+                                Add-Type -A 'System.IO.Compression.FileSystem'; ^
+                                [IO.Compression.ZipFile]::ExtractToDirectory('%BUILD_DIR%\%JVM_TEMP_FILE%', '%JVM_TARGET_DIR%'); ^
+                            } ^
+                            Remove-Item '%BUILD_DIR%\%JVM_TEMP_FILE%'; ^
+                             ^
+                            Set-Content '%JVM_TARGET_DIR%.flag' -Value '%JVM_URL%'; ^
+                        } ^
+                    } ^
+                    finally { ^
+                        [void]${'$'}lock.ReleaseMutex(); ^
+                    }
 
-                    POPD
-
-                    RMDIR /S /Q "%JVM_TARGET_DIR%"
-                    if errorlevel 1 goto fail
-
-                    MKDIR "%JVM_TARGET_DIR%"
-                    if errorlevel 1 goto fail
-
-                    PUSHD "%JVM_TARGET_DIR%"
-                    if errorlevel 1 goto fail
-
-                    echo Extracting %BUILD_DIR%\%JVM_TEMP_FILE% to %JVM_TARGET_DIR%
-                    
-                    if "%IS_TAR_GZ%"=="1" (
-                        tar xf "..\\%JVM_TEMP_FILE%"
-                    ) else (
-                        "%POWERSHELL%" -nologo -noprofile -command "Set-StrictMode -Version 3.0; ${"$"}ErrorActionPreference = \"Stop\"; Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory('..\\%JVM_TEMP_FILE%', '.');"
-                    )
-                    if errorlevel 1 goto fail
-
-                    DEL /F "..\%JVM_TEMP_FILE%"
-                    if errorlevel 1 goto fail
-
-                    POPD
-
-                    echo %JVM_URL%>"%JVM_TARGET_DIR%.flag"
+                    "%POWERSHELL%" -nologo -noprofile -Command %DOWNLOAD_AND_EXTRACT_JVM_PS1%
                     if errorlevel 1 goto fail
 
                     :continueWithJvm
