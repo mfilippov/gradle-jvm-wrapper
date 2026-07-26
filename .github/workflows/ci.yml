@@ -9,6 +9,13 @@ on:
       - master
   workflow_dispatch:
 
+# A PR force-push supersedes the previous run of the same ref instead of
+# stacking another full 7-job matrix of multi-GB JDK downloads on top of it;
+# a running master build is never canceled (queued ones collapse to the newest).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   windows:
     runs-on: windows-latest
