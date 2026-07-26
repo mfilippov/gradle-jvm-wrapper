@@ -135,8 +135,11 @@ class Plugin : Plugin<Project> {
         val macAarch64JvmUrl = validatedUrl("macAarch64JvmUrl", cfg.macAarch64JvmUrl.get())
         val macX64JvmUrl = validatedUrl("macX64JvmUrl", cfg.macX64JvmUrl.get())
         return ResolvedConfig(
+            // '&' and '^' survive the plugin's own quoted block but crash the stock
+            // unquoted 'set JAVA_HOME=...' in Gradle's template; '<>|*?' are illegal
+            // in Windows paths and would only fail deep inside the bootstrap.
             winJvmInstallDir = validatedValue(
-                "winJvmInstallDir", cfg.winJvmInstallDir.get(), "\"", allowSpaces = true),
+                "winJvmInstallDir", cfg.winJvmInstallDir.get(), "\"&^<>|*?", allowSpaces = true),
             unixJvmInstallDir = validatedUnixDir("unixJvmInstallDir", cfg.unixJvmInstallDir.get()),
             keepRosetta2 = cfg.keepRosetta2.get(),
             windowsAarch64JvmUrl = windowsAarch64JvmUrl,

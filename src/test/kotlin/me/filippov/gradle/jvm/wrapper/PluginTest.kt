@@ -472,6 +472,8 @@ class PluginTest {
             """linuxX64JvmUrl = "https://example.com/jdk\"quote.tar.gz"""" to "must not contain",
             """linuxX64JvmUrl = "https://example.com/jdk\${'$'}{HOME}.tar.gz"""" to "must not contain",
             """winJvmInstallDir = "C:\\path\\with\"quote"""" to "must not contain",
+            """winJvmInstallDir = "C:\\R&D\\gradle-jvm"""" to "must not contain",
+            """winJvmInstallDir = "C:\\path\\with^caret"""" to "must not contain",
             """unixJvmInstallDir = "${'$'}(rm -rf /)/jvm"""" to "command substitution",
         ).forEach { (configuration, expectedError) ->
             buildScriptWith(configuration)
