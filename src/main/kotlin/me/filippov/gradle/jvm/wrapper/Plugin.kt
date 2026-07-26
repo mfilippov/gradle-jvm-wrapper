@@ -151,7 +151,7 @@ class Plugin : Plugin<Project> {
           "${'$'}@"
         }
         jvm_is_up_to_date () {
-          [ -n "${'$'}(ls "${'$'}JVM_TARGET_DIR" 2>/dev/null)" ] && grep -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null
+          [ -n "${'$'}(ls "${'$'}JVM_TARGET_DIR" 2>/dev/null)" ] && grep -F -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null
         }
         KEEP_ROSETTA2=${c.keepRosetta2}
         BUILD_DIR="${c.unixJvmInstallDir}"
@@ -244,7 +244,7 @@ class Plugin : Plugin<Project> {
                 break 3  # Note: goto out of the outer if-else block.
               fi
             done
-            if [ -n "${"$"}LOCK_OWNER" ] && grep -q -x "${"$"}LOCK_OWNER" "${"$"}LOCK_FILE" 2>/dev/null; then
+            if [ -n "${"$"}LOCK_OWNER" ] && grep -F -q -x "${"$"}LOCK_OWNER" "${"$"}LOCK_FILE" 2>/dev/null; then
               die "ERROR: The lock file ${"$"}LOCK_FILE still exists on disk after the owner process ${"$"}LOCK_OWNER exited"
             fi
           done
