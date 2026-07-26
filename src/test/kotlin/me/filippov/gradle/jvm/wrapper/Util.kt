@@ -57,6 +57,17 @@ fun runProcess(builder: ProcessBuilder, timeoutMinutes: Long = 10): TaskResult {
 fun gradlew(projectRoot: File, task: String): TaskResult =
     runProcess(gradlewProcessBuilder(projectRoot, task))
 
+val gitBash = File("""C:\Program Files\Git\bin\bash.exe""")
+
+// Runs the unix wrapper script on Windows under Git Bash (the msys environment).
+fun gradlewInGitBash(projectRoot: File, task: String): TaskResult {
+    val workingDirectory = File(System.getProperty("user.dir"))
+    return runProcess(ProcessBuilder(
+            gitBash.absolutePath, "./gradlew", "--include-build",
+            workingDirectory.absolutePath, "-Pkotlin.compiler.execution.strategy=in-process", "--no-daemon", ":$task")
+        .directory(projectRoot))
+}
+
 fun gradlewParallel(projectRoot: File, task: String, count: Int): List<TaskResult> {
     val processes = List(count) { gradlewProcessBuilder(projectRoot, task).start() }
     try {

@@ -1,7 +1,9 @@
 package me.filippov.gradle.jvm.wrapper
 
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledOnOs
+import org.junit.jupiter.api.condition.EnabledOnOs
 import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
 import java.net.URI
@@ -67,6 +69,58 @@ class PluginTest {
             "Expected exactly one process to download the JVM:\n" +
                     results.joinToString("\n") { "STDOUT:\n${it.stdout}\nSTDERR:\n${it.stderr}\n" })
         jvmInstallDir.list()!!.size.shouldBe(1)
+
+        repeat((0..30).count()) {
+            if (!projectRoot.exists()) {
+                return@repeat
+            }
+            Thread.sleep(1000)
+            projectRoot.deleteRecursively()
+        }
+    }
+
+    @Test
+    @EnabledOnOs(OS.WINDOWS)
+    fun smokeMsys(@TempDir tempDir: Path) {
+        // Runs the unix wrapper script under Git Bash: covers the cygwin/msys branch
+        // (incl. the aarch64 arch case on ARM runners) and the PowerShell zip
+        // fallback, since Git Bash ships no unzip.
+        if (System.getenv("CI") != null) {
+            // A skip would silently drop the only end-to-end coverage of the msys
+            // branch if a runner image ever moves or drops Git for Windows.
+            gitBash.exists().shouldBeTrue("Git Bash is required on CI runners: $gitBash")
+        } else {
+            Assumptions.assumeTrue(gitBash.exists(), "Git Bash is not installed")
+        }
+        val projectRoot = tempDir.resolve("folder with space's").toFile()
+        projectRoot.mkdirs()
+        val jvmInstallDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm")
+
+        withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                winJvmInstallDir = "${jvmInstallDir.absolutePath.replace("\\", "\\\\")}"
+                unixJvmInstallDir = "/${jvmInstallDir.absolutePath[0].lowercaseChar()}${
+                    jvmInstallDir.absolutePath.substring(2).replace("\\", "/")}"
+            }
+            tasks.register("hello") {
+                doLast {
+                    println("Hello world!")
+                }
+            }
+        """}
+
+        prepareWrapper(projectRoot)
+
+        val result = gradlewInGitBash(projectRoot, "hello")
+        result.stdout.shouldContain("Extracting ",
+            "Expected the JVM to be downloaded and extracted:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
+        result.stdout.shouldContain("Hello world!",
+            "'Hello world!' not found in output:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
+        result.exitCode.shouldBe(0, "Non zero exit code:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
+        jvmInstallDir.exists().shouldBeTrue("The JVM was not installed into $jvmInstallDir")
 
         repeat((0..30).count()) {
             if (!projectRoot.exists()) {

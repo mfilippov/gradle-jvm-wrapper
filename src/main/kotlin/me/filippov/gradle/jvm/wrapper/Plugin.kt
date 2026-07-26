@@ -174,6 +174,12 @@ class Plugin : Plugin<Project> {
         if [ "${"$"}darwin" = "true" ] && ! ${"$"}KEEP_ROSETTA2 && [ "${'$'}(sysctl -n sysctl.proc_translated 2>/dev/null || true)" = "1" ]; then
             JVM_ARCH=arm64
         fi
+        if { [ "${"$"}cygwin" = "true" ] || [ "${"$"}msys" = "true" ]; } && command -v cygpath >/dev/null 2>&1; then
+            # Native Windows tools (curl, powershell) cannot open msys-style /c/...
+            # paths, and the msys argument conversion refuses paths containing a
+            # quote character — convert to the C:/... form up front.
+            BUILD_DIR=${'$'}(cygpath -m "${"$"}BUILD_DIR")
+        fi
         JVM_TEMP_FILE="${"$"}BUILD_DIR/gradle-jvm-temp.tar.gz"
         if [ "${"$"}darwin" = "true" ]; then
             case ${"$"}JVM_ARCH in
@@ -306,7 +312,17 @@ class Plugin : Plugin<Project> {
           mkdir -p "${"$"}JVM_TARGET_DIR"
 
           case "${'$'}JVM_URL" in
-            *".zip") unzip "${"$"}JVM_TEMP_FILE" -d "${"$"}JVM_TARGET_DIR" ;;
+            *".zip")
+              if command -v unzip >/dev/null 2>&1; then
+                unzip "${"$"}JVM_TEMP_FILE" -d "${"$"}JVM_TARGET_DIR"
+              elif command -v cygpath >/dev/null 2>&1 && command -v powershell.exe >/dev/null 2>&1; then
+                # Git Bash ships no unzip; use the Windows PowerShell zip support.
+                JVM_ZIP_SRC=${'$'}(cygpath -w "${"$"}JVM_TEMP_FILE") JVM_ZIP_DST=${'$'}(cygpath -w "${"$"}JVM_TARGET_DIR") \
+                  powershell.exe -NoLogo -NoProfile -Command "Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory(\${'$'}env:JVM_ZIP_SRC, \${'$'}env:JVM_ZIP_DST)"
+              else
+                die "ERROR: Please install unzip"
+              fi
+              ;;
             *) tar -x -f "${"$"}JVM_TEMP_FILE" -C "${"$"}JVM_TARGET_DIR" ;;
           esac
 
