@@ -159,18 +159,18 @@ class Plugin : Plugin<Project> {
         if [ "${"$"}darwin" = "true" ] && ! ${"$"}KEEP_ROSETTA2 && [ "${'$'}(sysctl -n sysctl.proc_translated 2>/dev/null || true)" = "1" ]; then
             JVM_ARCH=arm64
         fi
-        JVM_TEMP_FILE=${"$"}BUILD_DIR/gradle-jvm-temp.tar.gz
+        JVM_TEMP_FILE="${"$"}BUILD_DIR/gradle-jvm-temp.tar.gz"
         if [ "${"$"}darwin" = "true" ]; then
             case ${"$"}JVM_ARCH in
             x86_64)
-                JVM_URL=${c.macX64JvmUrl}
-                JVM_SHA256=${c.macX64JvmSha256}
-                JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(c.macX64JvmUrl)}
+                JVM_URL="${c.macX64JvmUrl}"
+                JVM_SHA256="${c.macX64JvmSha256}"
+                JVM_TARGET_DIR="${"$"}BUILD_DIR/${getJvmDirName(c.macX64JvmUrl)}"
                 ;;
             arm64)
-                JVM_URL=${c.macAarch64JvmUrl}
-                JVM_SHA256=${c.macAarch64JvmSha256}
-                JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(c.macAarch64JvmUrl)}
+                JVM_URL="${c.macAarch64JvmUrl}"
+                JVM_SHA256="${c.macAarch64JvmSha256}"
+                JVM_TARGET_DIR="${"$"}BUILD_DIR/${getJvmDirName(c.macAarch64JvmUrl)}"
                 ;;
             *)
                 die "Unknown architecture ${"$"}JVM_ARCH"
@@ -179,28 +179,28 @@ class Plugin : Plugin<Project> {
         elif [ "${"$"}cygwin" = "true" ] || [ "${"$"}msys" = "true" ]; then
             case ${"$"}JVM_ARCH in
             aarch64 | arm64)
-                JVM_URL=${c.windowsAarch64JvmUrl}
-                JVM_SHA256=${c.windowsAarch64JvmSha256}
-                JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(c.windowsAarch64JvmUrl)}
+                JVM_URL="${c.windowsAarch64JvmUrl}"
+                JVM_SHA256="${c.windowsAarch64JvmSha256}"
+                JVM_TARGET_DIR="${"$"}BUILD_DIR/${getJvmDirName(c.windowsAarch64JvmUrl)}"
                 ;;
             *)
-                JVM_URL=${c.windowsX64JvmUrl}
-                JVM_SHA256=${c.windowsX64JvmSha256}
-                JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(c.windowsX64JvmUrl)}
+                JVM_URL="${c.windowsX64JvmUrl}"
+                JVM_SHA256="${c.windowsX64JvmSha256}"
+                JVM_TARGET_DIR="${"$"}BUILD_DIR/${getJvmDirName(c.windowsX64JvmUrl)}"
                 ;;
             esac
         else
             JVM_ARCH=${'$'}(linux${'$'}(getconf LONG_BIT) uname -m)
             case ${"$"}JVM_ARCH in
                 x86_64)
-                    JVM_URL=${c.linuxX64JvmUrl}
-                    JVM_SHA256=${c.linuxX64JvmSha256}
-                    JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(c.linuxX64JvmUrl)}
+                    JVM_URL="${c.linuxX64JvmUrl}"
+                    JVM_SHA256="${c.linuxX64JvmSha256}"
+                    JVM_TARGET_DIR="${"$"}BUILD_DIR/${getJvmDirName(c.linuxX64JvmUrl)}"
                     ;;
                 aarch64)
-                    JVM_URL=${c.linuxAarch64JvmUrl}
-                    JVM_SHA256=${c.linuxAarch64JvmSha256}
-                    JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(c.linuxAarch64JvmUrl)}
+                    JVM_URL="${c.linuxAarch64JvmUrl}"
+                    JVM_SHA256="${c.linuxAarch64JvmSha256}"
+                    JVM_TARGET_DIR="${"$"}BUILD_DIR/${getJvmDirName(c.linuxAarch64JvmUrl)}"
                     ;;
                 *)
                     die "Unknown architecture ${"$"}JVM_ARCH"
