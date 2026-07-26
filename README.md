@@ -13,11 +13,26 @@ plugins {
     id("me.filippov.gradle.jvm.wrapper") version "0.17.0"
 }
 ```
-After that you should call `wrapper` Gradle task to setup a wrapper and update the command-line scripts.
+After that, call the `wrapper` Gradle task to set up a wrapper and update the command-line scripts.
+The plugin must be applied to the root project (the `wrapper` task only exists there).
 
 Note: with the Kotlin DSL, the `=` assignment syntax in `jvmWrapper { }` requires Gradle 8.2 or newer;
 on older Gradle versions use `.set(...)` instead.
-By default the plugin uses Oracle JDK 25. You can configure it for your JVM distribution:
+Configured URLs and install dirs must be printable ASCII (they are embedded into batch and
+shell scripts); for localized user-profile paths keep the `%LOCALAPPDATA%` / `${HOME}`
+environment-variable indirection the defaults use — it expands on each user's machine.
+A few characters the generated scripts cannot quote away are rejected at configuration
+time: URLs must not contain spaces, quotes, backticks, backslashes or `$`;
+`winJvmInstallDir` must not contain `" & ^ < > | * ?`; `unixJvmInstallDir` must not
+contain `"`, backticks, `$(`, or a backslash at the end, before another backslash or
+before `$`. A URL whose path ends in `.zip` (any case) is treated as a zip archive,
+anything else — including suffix-less "latest" redirector links — as a tar.gz.
+
+On an Apple Silicon Mac the wrapper detects a shell running under Rosetta 2 and still
+downloads the native arm64 JDK; set `keepRosetta2 = true` to keep the x64 JDK matching
+the translated shell instead.
+By default the plugin uses Oracle JDK 25 (Microsoft OpenJDK on Windows ARM, where Oracle
+publishes no build). You can configure it for your JVM distribution:
 
 Groovy edition:
 ```groovy
@@ -26,8 +41,8 @@ plugins {
 }
 
 jvmWrapper {
-    unixJvmInstallDir = "${"$"}{HOME}/my-custom-path/gradle-jvm"
-    winJvmInstallDir = "%LOCALAPPDATA%\\gradle-jvm"
+    unixJvmInstallDir = '${HOME}/my-custom-path/gradle-jvm'
+    winJvmInstallDir = '%LOCALAPPDATA%\\gradle-jvm'
     linuxAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-linux-aarch64.tar.gz"
     linuxX64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-linux-x64.tar.gz"
     macAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-macos-aarch64.tar.gz"
@@ -43,7 +58,7 @@ plugins {
 }
 
 jvmWrapper {
-    unixJvmInstallDir = "${"$"}{HOME}/my-custom-path/gradle-jvm"
+    unixJvmInstallDir = "\${HOME}/my-custom-path/gradle-jvm"
     winJvmInstallDir = "%LOCALAPPDATA%\\gradle-jvm"
     linuxAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-linux-aarch64.tar.gz"
     linuxX64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-linux-x64.tar.gz"
@@ -57,13 +72,19 @@ jvmWrapper {
 ## Outdated wrapper detection
 Changes in the `jvmWrapper { }` block only take effect after the `wrapper` task regenerates
 the command-line scripts. While `gradlew`/`gradlew.bat` are out of sync with the configuration,
-the plugin prints a warning on every build. To fail the build instead of warning, enable
-the strict mode (the `wrapper` task itself always stays runnable):
+the plugin prints a warning whenever a task-executing build is configured (with the
+configuration cache enabled, the warning appears when an entry is stored; cache hits
+stay silent).
+To fail the build instead of warning, enable the strict mode (any build that runs
+the `wrapper` task itself stays allowed):
 ```kotlin
 jvmWrapper {
     failOnOutdatedWrapper = true
 }
 ```
+The check runs when a task graph is built, so two kinds of builds never see it (nor can the
+strict mode break them): IDE sync (Tooling API model requests) and running Gradle from a
+composite root that includes this build without requesting its tasks.
 
 ## SHA-256 validation
 The downloaded JVM archive is verified against an expected SHA-256 checksum.
