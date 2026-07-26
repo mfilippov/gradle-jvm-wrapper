@@ -448,6 +448,12 @@ class Plugin : Plugin<Project> {
     }
 
     override fun apply(project: Project) {
+        if (project != project.rootProject) {
+            throw GradleException(
+                "The me.filippov.gradle.jvm.wrapper plugin patches the wrapper scripts of the " +
+                        "'$wrapperTaskName' task, which only exists in the root project. " +
+                        "Apply the plugin to the root project instead of '${project.path}'.")
+        }
         val cfg = project.extensions.create(extensionName, PluginExtension::class.java)
         val unixJvmScript = project.provider { generateUnixJvmScript(resolveConfig(cfg)) }
         val winJvmScript = project.provider { generateWinJvmScript(resolveConfig(cfg)) }

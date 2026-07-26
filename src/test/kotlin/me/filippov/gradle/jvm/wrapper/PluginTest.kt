@@ -362,6 +362,23 @@ class PluginTest {
     }
 
     @Test
+    fun applyingToASubprojectFailsWithAClearError(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("project").toFile()
+        projectRoot.resolve("sub").mkdirs()
+        projectRoot.resolve("settings.gradle.kts").writeText("""include("sub")""")
+        projectRoot.resolve("build.gradle.kts").writeText("")
+        projectRoot.resolve("sub").resolve("build.gradle.kts").writeText("""
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+        """.trimIndent())
+
+        val output = runGradleExpectingFailure(projectRoot, "help")
+        output.shouldContain("Apply the plugin to the root project",
+            "Expected a clear root-only error:\n$output")
+    }
+
+    @Test
     fun invalidSha256FailsAtConfigurationTime(@TempDir tempDir: Path) {
         val projectRoot = tempDir.resolve("project").toFile()
         projectRoot.mkdirs()
