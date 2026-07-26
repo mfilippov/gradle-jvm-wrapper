@@ -467,8 +467,8 @@ class PluginTest {
         """}
 
         val output = prepareWrapperExpectingFailure(projectRoot)
-        output.shouldContain("linuxX64JvmSha256",
-            "Expected a configuration error mentioning the property:\n$output")
+        output.shouldContain("jvmWrapper.linuxX64JvmSha256 must be a 64-character hexadecimal SHA-256 checksum",
+            "Expected a validation error for the property:\n$output")
     }
 
     @Test
@@ -492,16 +492,24 @@ class PluginTest {
         // Oracle publishes "<url>.sha256", Microsoft "<url>.sha256sum.txt". A missing
         // aka.ms suffix redirects to a search page, hence the size cutoff; if no sidecar
         // yields a checksum, fall back to hashing the archive itself.
+        // A stalled vendor server must fail the test in minutes, not hang it
+        // until the CI job timeout.
+        fun openWithTimeouts(url: String) = URI(url).toURL().openConnection().apply {
+            connectTimeout = 30_000
+            readTimeout = 60_000
+        }.getInputStream()
+
         val sidecarSha256 = sequenceOf("$jvmUrl.sha256", "$jvmUrl.sha256sum.txt")
             .firstNotNullOfOrNull { sidecarUrl ->
                 runCatching {
-                    URI(sidecarUrl).toURL().readText().takeIf { it.length <= 1024 }
+                    openWithTimeouts(sidecarUrl).use { it.readBytes().toString(Charsets.UTF_8) }
+                        .takeIf { it.length <= 1024 }
                         ?.trim()?.split(Regex("\\s+"))?.firstOrNull { it.matches(Regex("[0-9a-fA-F]{64}")) }
                 }.getOrNull()
             }
         val publishedSha256 = sidecarSha256 ?: run {
             val digest = MessageDigest.getInstance("SHA-256")
-            URI(jvmUrl).toURL().openStream().use { input ->
+            openWithTimeouts(jvmUrl).use { input ->
                 val buffer = ByteArray(1 shl 16)
                 while (true) {
                     val read = input.read(buffer)
@@ -511,6 +519,11 @@ class PluginTest {
             }
             digest.digest().joinToString("") { "%02x".format(it) }
         }
+        // Which source produced the checksum matters when the 'good' phase fails:
+        // a stale or garbled sidecar is otherwise indistinguishable from a plugin bug.
+        println("Expected SHA-256 for $jvmUrl " +
+                (if (sidecarSha256 != null) "from the vendor sidecar" else "by hashing the archive") +
+                ": $publishedSha256")
 
         fun buildScriptWithSha256(sha256: String) = withBuildScript(projectRoot) { """
             plugins {
