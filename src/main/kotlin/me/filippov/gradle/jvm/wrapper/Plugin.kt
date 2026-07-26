@@ -158,6 +158,7 @@ class Plugin : Plugin<Project> {
                       echo "${"$"}JVM_URL" >"${"$"}JVM_TARGET_DIR/.flag"
                       fi
                       rm "${"$"}LOCK_FILE"
+                      trap - EXIT
                       break
                     done
                     fi
