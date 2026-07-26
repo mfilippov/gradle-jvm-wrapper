@@ -239,6 +239,67 @@ class PluginTest {
     }
 
     @Test
+    fun outdatedWrapperCheckAllowsAbbreviatedWrapperTaskName(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("project").toFile()
+        projectRoot.mkdirs()
+        fun buildScriptWithUrl(url: String) = withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                failOnOutdatedWrapper = true
+                linuxX64JvmUrl = "$url"
+            }
+        """}
+
+        buildScriptWithUrl(PluginExtension.DEFAULT_LINUX_X64_JVM_URL)
+        prepareWrapper(projectRoot)
+        buildScriptWithUrl("https://example.com/custom-jdk-linux-x64.tar.gz")
+
+        // 'wrap' resolves to the 'wrapper' task via Gradle's task name abbreviation;
+        // the strict mode must not fail the build before the wrapper can regenerate.
+        prepareWrapperWithArguments(projectRoot, "wrap")
+        prepareWrapperWithArguments(projectRoot, "help")
+            .shouldNotContain("does not match the generated wrapper scripts",
+                "No warning expected after regeneration via an abbreviated task name")
+    }
+
+    @Test
+    fun outdatedWrapperCheckAllowsWrapperViaDependencyAndCaseVariants(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("project").toFile()
+        projectRoot.mkdirs()
+        val outdatedMessage = "does not match the generated wrapper scripts"
+        fun buildScriptWithUrl(url: String) = withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                failOnOutdatedWrapper = true
+                linuxX64JvmUrl = "$url"
+            }
+            tasks.register("regenerate") {
+                dependsOn("wrapper")
+            }
+        """}
+
+        buildScriptWithUrl(PluginExtension.DEFAULT_LINUX_X64_JVM_URL)
+        prepareWrapper(projectRoot)
+
+        // Gradle resolves task names case-insensitively; the strict mode must not
+        // fail the build before the wrapper task can regenerate the scripts.
+        buildScriptWithUrl("https://example.com/custom-jdk-linux-x64.tar.gz")
+        prepareWrapperWithArguments(projectRoot, "WRAPPER")
+        prepareWrapperWithArguments(projectRoot, "help").shouldNotContain(outdatedMessage,
+            "No warning expected after regeneration via a case variant of the task name")
+
+        // The wrapper task may also run as a dependency of another task.
+        buildScriptWithUrl("https://example.com/other-jdk-linux-x64.tar.gz")
+        prepareWrapperWithArguments(projectRoot, "regenerate")
+        prepareWrapperWithArguments(projectRoot, "help").shouldNotContain(outdatedMessage,
+            "No warning expected after regeneration via a task dependency")
+    }
+
+    @Test
     fun outdatedWrapperCheckIsConfigurationCacheCompatible(@TempDir tempDir: Path) {
         val projectRoot = tempDir.resolve("project").toFile()
         projectRoot.mkdirs()

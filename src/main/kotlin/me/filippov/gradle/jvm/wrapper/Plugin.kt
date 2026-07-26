@@ -395,11 +395,6 @@ class Plugin : Plugin<Project> {
     }
 
     private fun checkWrapperScriptsUpToDate(project: Project, cfg: PluginExtension, task: Wrapper) {
-        val requestedTasks = project.gradle.startParameter.taskNames
-        if (requestedTasks.any { it == wrapperTaskName || it.endsWith(":$wrapperTaskName") }) {
-            // The wrapper is being regenerated in this build.
-            return
-        }
         val config = resolveConfig(cfg)
         val outdated = listOf(
             task.scriptFile to generateUnixJvmScript(config),
@@ -436,11 +431,16 @@ class Plugin : Plugin<Project> {
         val cfg = project.extensions.create(extensionName, PluginExtension::class.java)
         val unixJvmScript = project.provider { generateUnixJvmScript(resolveConfig(cfg)) }
         val winJvmScript = project.provider { generateWinJvmScript(resolveConfig(cfg)) }
-        project.afterEvaluate {
-            // Configuration-time check: file reads below become build configuration inputs,
-            // so a configuration cache entry is invalidated when the scripts change.
-            checkWrapperScriptsUpToDate(
-                project, cfg, project.tasks.named(wrapperTaskName, Wrapper::class.java).get())
+        project.gradle.taskGraph.whenReady { graph ->
+            val task = project.tasks.named(wrapperTaskName, Wrapper::class.java).get()
+            // The task graph knows every way the wrapper task can run in this build
+            // (exact name, abbreviation, any letter case, a dependency of another task,
+            // an included-build invocation), so the check never blocks a regeneration.
+            if (!graph.hasTask(task)) {
+                // Configuration-time check: file reads below become build configuration inputs,
+                // so a configuration cache entry is invalidated when the scripts change.
+                checkWrapperScriptsUpToDate(project, cfg, task)
+            }
         }
         project.tasks.named(wrapperTaskName, Wrapper::class.java).configure { task ->
             task.inputs.property("unixJvmScript", unixJvmScript)
