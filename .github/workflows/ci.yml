@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: |
           docker run --rm -v "$PWD:/work" -w /work \
-            -e TEST_LINUX_X64_JVM_URL=https://corretto.aws/downloads/latest/amazon-corretto-21-x64-alpine-linux-jdk.tar.gz \
+            -e TEST_LINUX_X64_JVM_URL=https://corretto.aws/downloads/latest/amazon-corretto-21-x64-alpine-jdk.tar.gz \
             alpine:3.22 sh -c '
               set -e
               apk add --no-cache openjdk21-jdk curl util-linux musl-utils >/dev/null
