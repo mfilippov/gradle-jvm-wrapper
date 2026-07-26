@@ -58,7 +58,7 @@ jobs:
           name: test-report-linux-arm
           path: build/reports/tests/test
   macos:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
       - name: Tests
