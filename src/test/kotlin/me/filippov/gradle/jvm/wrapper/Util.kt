@@ -29,26 +29,49 @@ private fun gradlewProcessBuilder(projectRoot: File, task: String): ProcessBuild
         .directory(projectRoot)
 }
 
-fun gradlew(projectRoot: File, task: String): TaskResult {
-    val process = gradlewProcessBuilder(projectRoot, task).start()
-    val stdout = process.inputStream.bufferedReader().readText()
-    val stderr = process.errorStream.bufferedReader().readText()
-    if (!process.waitFor(5, TimeUnit.MINUTES)) error("Process timeout error")
-    return TaskResult(process.exitValue(), stdout, stderr)
+// destroyForcibly alone kills only the direct child (cmd.exe/sh); a surviving java
+// grandchild would keep @TempDir files locked and the pipes open.
+fun killTree(process: Process) {
+    process.toHandle().descendants().forEach { it.destroyForcibly() }
+    process.destroyForcibly()
 }
+
+fun runProcess(builder: ProcessBuilder, timeoutMinutes: Long = 10): TaskResult {
+    val process = builder.start()
+    // Read both streams concurrently: a sequential read deadlocks when the child
+    // fills the other pipe's buffer, and the timeout below is never reached.
+    val stdout = CompletableFuture.supplyAsync { process.inputStream.bufferedReader().readText() }
+    val stderr = CompletableFuture.supplyAsync { process.errorStream.bufferedReader().readText() }
+    if (!process.waitFor(timeoutMinutes, TimeUnit.MINUTES)) {
+        killTree(process)
+        val out = runCatching { stdout.get(10, TimeUnit.SECONDS) }.getOrDefault("<unavailable>")
+        val err = runCatching { stderr.get(10, TimeUnit.SECONDS) }.getOrDefault("<unavailable>")
+        error("Process timed out after $timeoutMinutes minutes\nSTDOUT:\n$out\nSTDERR:\n$err")
+    }
+    // A grandchild that inherited the pipes could keep them open past the child's
+    // exit; never wait on the streams forever.
+    return TaskResult(process.exitValue(),
+        stdout.get(1, TimeUnit.MINUTES), stderr.get(1, TimeUnit.MINUTES))
+}
+
+fun gradlew(projectRoot: File, task: String): TaskResult =
+    runProcess(gradlewProcessBuilder(projectRoot, task))
 
 fun gradlewParallel(projectRoot: File, task: String, count: Int): List<TaskResult> {
     val processes = List(count) { gradlewProcessBuilder(projectRoot, task).start() }
-    val outputs = processes.map { process ->
-        CompletableFuture.supplyAsync { process.inputStream.bufferedReader().readText() } to
-                CompletableFuture.supplyAsync { process.errorStream.bufferedReader().readText() }
-    }
-    return processes.mapIndexed { i, process ->
-        if (!process.waitFor(10, TimeUnit.MINUTES)) {
-            process.destroyForcibly()
-            error("Process timeout error")
+    try {
+        val outputs = processes.map { process ->
+            CompletableFuture.supplyAsync { process.inputStream.bufferedReader().readText() } to
+                    CompletableFuture.supplyAsync { process.errorStream.bufferedReader().readText() }
         }
-        TaskResult(process.exitValue(), outputs[i].first.get(), outputs[i].second.get())
+        return processes.mapIndexed { i, process ->
+            if (!process.waitFor(10, TimeUnit.MINUTES)) error("Process timeout error")
+            TaskResult(process.exitValue(),
+                outputs[i].first.get(1, TimeUnit.MINUTES), outputs[i].second.get(1, TimeUnit.MINUTES))
+        }
+    } finally {
+        // A timeout of process 0 must not leak the still-running siblings.
+        processes.forEach { if (it.isAlive) killTree(it) }
     }
 }
 
