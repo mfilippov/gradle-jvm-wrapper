@@ -56,10 +56,12 @@ class Plugin : Plugin<Project> {
                         case ${"$"}JVM_ARCH in
                         x86_64)
                             JVM_URL=${cfg.macX64JvmUrl}
+                            JVM_SHA256=${cfg.macX64JvmSha256.lowercase()}
                             JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.macX64JvmUrl)}
                             ;;
                         arm64)
                             JVM_URL=${cfg.macAarch64JvmUrl}
+                            JVM_SHA256=${cfg.macAarch64JvmSha256.lowercase()}
                             JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.macAarch64JvmUrl)}
                             ;;
                         *) 
@@ -68,16 +70,19 @@ class Plugin : Plugin<Project> {
                         esac
                     elif [ "${"$"}cygwin" = "true" ] || [ "${"$"}msys" = "true" ]; then
                         JVM_URL=${cfg.windowsX64JvmUrl}
+                        JVM_SHA256=${cfg.windowsX64JvmSha256.lowercase()}
                         JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.windowsX64JvmUrl)}
                     else
                         JVM_ARCH=${'$'}(linux${'$'}(getconf LONG_BIT) uname -m)
                          case ${"$"}JVM_ARCH in
                             x86_64)
                                 JVM_URL=${cfg.linuxX64JvmUrl}
+                                JVM_SHA256=${cfg.linuxX64JvmSha256.lowercase()}
                                 JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.linuxX64JvmUrl)}
                                 ;;
                             aarch64)
                                 JVM_URL=${cfg.linuxAarch64JvmUrl}
+                                JVM_SHA256=${cfg.linuxAarch64JvmSha256.lowercase()}
                                 JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(cfg.linuxAarch64JvmUrl)}
                                 ;;
                             *) 
@@ -143,7 +148,21 @@ class Plugin : Plugin<Project> {
                       else
                           die "ERROR: Please install wget or curl"
                       fi
-            
+
+                      if [ -n "${"$"}JVM_SHA256" ]; then
+                        if command -v sha256sum >/dev/null 2>&1; then
+                          ACTUAL_SHA256=${'$'}(sha256sum "${"$"}JVM_TEMP_FILE" | cut -d' ' -f1)
+                        elif command -v shasum >/dev/null 2>&1; then
+                          ACTUAL_SHA256=${'$'}(shasum -a 256 "${"$"}JVM_TEMP_FILE" | cut -d' ' -f1)
+                        else
+                          die "ERROR: Please install sha256sum or shasum to verify the downloaded JVM"
+                        fi
+                        if [ "${"$"}ACTUAL_SHA256" != "${"$"}JVM_SHA256" ]; then
+                          rm -f "${"$"}JVM_TEMP_FILE"
+                          die "ERROR: SHA-256 mismatch for ${"$"}JVM_URL: expected ${"$"}JVM_SHA256, actual ${"$"}ACTUAL_SHA256"
+                        fi
+                      fi
+
                       echo "Extracting ${"$"}JVM_TEMP_FILE to ${"$"}JVM_TARGET_DIR"
                       rm -rf "${"$"}JVM_TARGET_DIR"
                       mkdir -p "${"$"}JVM_TARGET_DIR"
@@ -192,9 +211,11 @@ class Plugin : Plugin<Project> {
                     if "%WIN_ARCH%" equ "AMD64" (
                         set JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(cfg.windowsX64JvmUrl)}\
                         set JVM_URL=${cfg.windowsX64JvmUrl.replace("%", "%%")}
+                        set JVM_SHA256=${cfg.windowsX64JvmSha256.lowercase()}
                     ) else if "%WIN_ARCH%" equ "ARM64" (
                         set JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(cfg.windowsAarch64JvmUrl)}\
                         set JVM_URL=${cfg.windowsAarch64JvmUrl.replace("%", "%%")}
+                        set JVM_SHA256=${cfg.windowsAarch64JvmSha256.lowercase()}
                     ) else (
                         echo Unknown architecture %WIN_ARCH%
                         goto fail
@@ -237,6 +258,16 @@ class Plugin : Plugin<Project> {
                             Write-Host 'Downloading %JVM_URL% to %BUILD_DIR%\%JVM_TEMP_FILE%'; ^
                             [void](New-Item '%BUILD_DIR%' -ItemType Directory -Force); ^
                             (New-Object Net.WebClient).DownloadFile('%JVM_URL%', '%BUILD_DIR%\%JVM_TEMP_FILE%'); ^
+                             ^
+                            if (-not [string]::IsNullOrEmpty(${'$'}env:JVM_SHA256)) { ^
+                                ${'$'}sha256Stream = [System.IO.File]::OpenRead('%BUILD_DIR%\%JVM_TEMP_FILE%'); ^
+                                try { ${'$'}hashBytes = [System.Security.Cryptography.SHA256]::Create().ComputeHash(${'$'}sha256Stream); } finally { ${'$'}sha256Stream.Close(); } ^
+                                ${'$'}actualSha256 = ([System.BitConverter]::ToString(${'$'}hashBytes) -replace '-', '').ToLowerInvariant(); ^
+                                if (${'$'}actualSha256 -ne ${'$'}env:JVM_SHA256) { ^
+                                    Remove-Item '%BUILD_DIR%\%JVM_TEMP_FILE%'; ^
+                                    throw ('SHA-256 mismatch for %JVM_URL%: expected ' + ${'$'}env:JVM_SHA256 + ', actual ' + ${'$'}actualSha256); ^
+                                } ^
+                            } ^
                              ^
                             Write-Host 'Extracting %BUILD_DIR%\%JVM_TEMP_FILE% to %JVM_TARGET_DIR%'; ^
                             if (Test-Path '%JVM_TARGET_DIR%') { ^

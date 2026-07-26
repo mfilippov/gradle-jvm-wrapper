@@ -4,7 +4,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledOnOs
 import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
+import java.net.URI
 import java.nio.file.Path
+import java.util.*
 
 class PluginTest {
     // Allows platform-specific CI (e.g. Alpine/musl) to point the tests at a compatible JDK build.
@@ -165,6 +167,71 @@ class PluginTest {
             "Expected a failure, got exit code 0:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
         (result.stdout + result.stderr).shouldContain("The lock file",
             "Expected a stale lock error:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
+
+        repeat((0..30).count()) {
+            if (!projectRoot.exists()) {
+                return@repeat
+            }
+            Thread.sleep(1000)
+            projectRoot.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun smokeSha256Validation(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("folder with space").toFile()
+        projectRoot.mkdirs()
+        val jvmInstallDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm")
+        val absJvmDir = jvmInstallDir.absolutePath.replace("\\", "\\\\")
+
+        // The JVM URL the wrapper will pick on this platform (the plugin defaults) and
+        // its published checksum from the vendor's sidecar file.
+        val defaults = PluginExtension()
+        val arch = System.getProperty("os.arch").lowercase(Locale.ENGLISH)
+        val isArm = arch == "aarch64" || arch == "arm64"
+        val (platform, jvmUrl) = when {
+            isWindows && isArm -> "windowsAarch64" to defaults.windowsAarch64JvmUrl
+            isWindows -> "windowsX64" to defaults.windowsX64JvmUrl
+            isMac && isArm -> "macAarch64" to defaults.macAarch64JvmUrl
+            isMac -> "macX64" to defaults.macX64JvmUrl
+            isArm -> "linuxAarch64" to defaults.linuxAarch64JvmUrl
+            else -> "linuxX64" to defaults.linuxX64JvmUrl
+        }
+        val publishedSha256 = URI("$jvmUrl.sha256").toURL().readText()
+            .trim().split(Regex("\\s+")).first { it.matches(Regex("[0-9a-fA-F]{64}")) }
+
+        fun buildScriptWithSha256(sha256: String) = withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                winJvmInstallDir = "$absJvmDir"
+                unixJvmInstallDir = "$absJvmDir"
+                ${platform}JvmSha256 = "$sha256"
+            }
+            tasks.register("hello") {
+                doLast {
+                    println("Hello world!")
+                }
+            }
+        """}
+
+        // A wrong checksum must fail the build with a clear error before extraction.
+        buildScriptWithSha256("0".repeat(64))
+        prepareWrapper(projectRoot)
+        val badRun = gradlew(projectRoot, "hello")
+        (badRun.exitCode != 0).shouldBeTrue(
+            "Expected a failure, got exit code 0:\nSTDOUT:\n${badRun.stdout}\nSTDERR:\n${badRun.stderr}\n")
+        (badRun.stdout + badRun.stderr).shouldContain("SHA-256 mismatch",
+            "Expected a checksum error:\nSTDOUT:\n${badRun.stdout}\nSTDERR:\n${badRun.stderr}\n")
+
+        // The correct checksum must pass; uppercase input checks normalization.
+        buildScriptWithSha256(publishedSha256.uppercase())
+        prepareWrapper(projectRoot)
+        val goodRun = gradlew(projectRoot, "hello")
+        goodRun.stdout.shouldContain("Hello world!",
+            "'Hello world!' not found in output:\nSTDOUT:\n${goodRun.stdout}\nSTDERR:\n${goodRun.stderr}\n")
+        goodRun.exitCode.shouldBe(0, "Non zero exit code:\nSTDOUT:\n${goodRun.stdout}\nSTDERR:\n${goodRun.stderr}\n")
 
         repeat((0..30).count()) {
             if (!projectRoot.exists()) {
