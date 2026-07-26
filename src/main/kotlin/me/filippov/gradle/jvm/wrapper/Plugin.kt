@@ -150,8 +150,19 @@ class Plugin : Plugin<Project> {
           done
           "${'$'}@"
         }
+        find_java_home () {
+          JAVA_HOME=
+          for d in "${"$"}JVM_TARGET_DIR" "${"$"}JVM_TARGET_DIR"/* "${"$"}JVM_TARGET_DIR"/Contents/Home "${"$"}JVM_TARGET_DIR"/*/Contents/Home; do
+            if [ -e "${"$"}d/bin/java" ]; then
+              JAVA_HOME="${"$"}d"
+            fi
+          done
+        }
         jvm_is_up_to_date () {
-          [ -n "${'$'}(ls "${'$'}JVM_TARGET_DIR" 2>/dev/null)" ] && grep -F -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null
+          # A matching .flag alone is not enough: a broken installation (partial
+          # extraction, cleanup tools) must be re-downloaded, like on Windows.
+          find_java_home
+          [ -n "${"$"}JAVA_HOME" ] && grep -F -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null
         }
         KEEP_ROSETTA2=${c.keepRosetta2}
         BUILD_DIR="${c.unixJvmInstallDir}"
@@ -299,14 +310,11 @@ class Plugin : Plugin<Project> {
         done
         fi
 
-        JAVA_HOME=
-        for d in "${"$"}JVM_TARGET_DIR" "${"$"}JVM_TARGET_DIR"/* "${"$"}JVM_TARGET_DIR"/Contents/Home "${"$"}JVM_TARGET_DIR"/*/Contents/Home; do
-          if [ -e "${"$"}d/bin/java" ]; then
-            JAVA_HOME="${"$"}d"
-          fi
-        done
+        find_java_home
 
-        if [ '!' -e "${"$"}JAVA_HOME/bin/java" ]; then
+        # The emptiness check matters: with an empty JAVA_HOME the -e test would
+        # probe the literal /bin/java, which exists on any usr-merged Linux.
+        if [ -z "${"$"}JAVA_HOME" ] || [ '!' -e "${"$"}JAVA_HOME/bin/java" ]; then
           die "Unable to find bin/java under ${"$"}JVM_TARGET_DIR"
         fi
 

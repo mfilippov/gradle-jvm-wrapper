@@ -115,6 +115,9 @@ class PluginTest {
         }
         jvmTargetDir.listFiles()!!.all { it.name == ".flag" }
             .shouldBeTrue("Failed to remove the JDK content from $jvmTargetDir")
+        // A leftover visible directory without bin/java: the install dir is non-empty,
+        // but still broken — the wrapper must re-download, not trust the .flag.
+        jvmTargetDir.resolve("leftover-dir").mkdirs()
 
         val secondRun = gradlew(projectRoot, "hello")
         secondRun.stdout.shouldContain("Down",
