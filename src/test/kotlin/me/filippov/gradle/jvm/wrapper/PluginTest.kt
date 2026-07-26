@@ -83,7 +83,7 @@ class PluginTest {
                 "'Hello world!' not found in output:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
             result.exitCode.shouldBe(0, "Non zero exit code:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
         }
-        results.count { it.stdout.contains("Down") }.shouldBe(1,
+        results.count { it.stdout.contains("Downloading ") }.shouldBe(1,
             "Expected exactly one process to download the JVM:\n" +
                     results.joinToString("\n") { "STDOUT:\n${it.stdout}\nSTDERR:\n${it.stderr}\n" })
         jvmInstallDir.list()!!.size.shouldBe(1)
@@ -176,7 +176,7 @@ class PluginTest {
         jvmTargetDir.resolve("leftover-dir").mkdirs()
 
         val secondRun = gradlew(projectRoot, "hello")
-        secondRun.stdout.shouldContain("Down",
+        secondRun.stdout.shouldContain("Downloading ",
             "Expected the JVM to be re-downloaded:\nSTDOUT:\n${secondRun.stdout}\nSTDERR:\n${secondRun.stderr}\n")
         secondRun.stdout.shouldContain("Hello world!",
             "'Hello world!' not found in output:\nSTDOUT:\n${secondRun.stdout}\nSTDERR:\n${secondRun.stderr}\n")
@@ -580,8 +580,8 @@ class PluginTest {
         prepareWrapper(projectRoot)
         val resultWhenJavaNotExists = gradlew(projectRoot, "hello")
 
-        resultWhenJavaNotExists.stdout.shouldContain("Down",
-            "'Down' not found in output:\nSTDOUT:\n${resultWhenJavaNotExists.stdout}\nSTDERR:\n${resultWhenJavaNotExists.stderr}\n"
+        resultWhenJavaNotExists.stdout.shouldContain("Downloading ",
+            "'Downloading' not found in output:\nSTDOUT:\n${resultWhenJavaNotExists.stdout}\nSTDERR:\n${resultWhenJavaNotExists.stderr}\n"
         )
 
         resultWhenJavaNotExists.stdout.shouldContain("Hello world!",
@@ -596,8 +596,8 @@ class PluginTest {
 
         resultWhenJavaExists.stdout.shouldContain("Hello world!",
             "'Hello world!' not found in output:\nSTDOUT:\n${resultWhenJavaExists.stdout}\nSTDERR:\n${resultWhenJavaExists.stderr}\n")
-        resultWhenJavaExists.stdout.shouldNotContain("Down",
-            "'Down' not found in output:\nSTDOUT:\n${resultWhenJavaExists.stdout}\nSTDERR:\n${resultWhenJavaExists.stderr}\n")
+        resultWhenJavaExists.stdout.shouldNotContain("Downloading ",
+            "Unexpected download on a warm run:\nSTDOUT:\n${resultWhenJavaExists.stdout}\nSTDERR:\n${resultWhenJavaExists.stderr}\n")
         resultWhenJavaExists.stderr.shouldBeEmpty("Non empty stderr:\n" + resultWhenJavaExists.stderr)
         resultWhenJavaExists.exitCode.shouldBe(0)
 
@@ -628,8 +628,8 @@ class PluginTest {
         val resultAfterJavaUpdate = gradlew(projectRoot, "newHello")
         resultAfterJavaUpdate.stdout.shouldContain("Hello new world!",
             "'Hello new world!' not found in output:\nSTDOUT:\n${resultAfterJavaUpdate.stdout}\nSTDERR:\n${resultAfterJavaUpdate.stderr}\n")
-        resultAfterJavaUpdate.stdout.shouldContain("Down",
-            "'Down' not found in output:\nSTDOUT:\n${resultAfterJavaUpdate.stdout}\nSTDERR:\n${resultAfterJavaUpdate.stderr}\n")
+        resultAfterJavaUpdate.stdout.shouldContain("Downloading ",
+            "'Downloading' not found in output:\nSTDOUT:\n${resultAfterJavaUpdate.stdout}\nSTDERR:\n${resultAfterJavaUpdate.stderr}\n")
         resultAfterJavaUpdate.stderr.shouldBeEmpty("Non empty stderr:\n" + resultAfterJavaUpdate.stderr)
         resultAfterJavaUpdate.exitCode.shouldBe(0)
 
