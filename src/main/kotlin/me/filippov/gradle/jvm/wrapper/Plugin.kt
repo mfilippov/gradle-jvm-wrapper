@@ -333,7 +333,17 @@ class Plugin : Plugin<Project> {
                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ^
                 Write-Host 'Downloading %JVM_URL% to %BUILD_DIR%\%JVM_TEMP_FILE%'; ^
                 [void](New-Item '%BUILD_DIR%' -ItemType Directory -Force); ^
-                (New-Object Net.WebClient).DownloadFile('%JVM_URL%', '%BUILD_DIR%\%JVM_TEMP_FILE%'); ^
+                ${'$'}downloadAttempt = 1; ^
+                while (${'$'}true) { ^
+                    try { ^
+                        (New-Object Net.WebClient).DownloadFile('%JVM_URL%', '%BUILD_DIR%\%JVM_TEMP_FILE%'); ^
+                        break; ^
+                    } catch { ^
+                        if (${'$'}downloadAttempt -ge 5) { throw; } ^
+                        Write-Host ('WARNING: Download failed: ' + ${'$'}_.Exception.Message + ', try again'); ^
+                        ${'$'}downloadAttempt = ${'$'}downloadAttempt + 1; ^
+                    } ^
+                } ^
                  ^
                 if (-not [string]::IsNullOrEmpty(${'$'}env:JVM_SHA256)) { ^
                     ${'$'}sha256Stream = [System.IO.File]::OpenRead('%BUILD_DIR%\%JVM_TEMP_FILE%'); ^
