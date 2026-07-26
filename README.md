@@ -52,8 +52,10 @@ jvmWrapper {
 ```
 
 ## SHA-256 validation
-The downloaded JVM archive can optionally be verified against an expected SHA-256 checksum.
-Add the checksum for the platforms you want to verify (an empty value disables the check):
+The downloaded JVM archive is verified against an expected SHA-256 checksum.
+The default JVM URLs are validated out of the box: the vendor-published checksums for them
+are built into the plugin. For a custom JVM URL, add the matching checksum yourself
+(with no checksum configured, a custom URL is downloaded without validation):
 ```kotlin
 jvmWrapper {
     linuxAarch64JvmSha256 = "..."

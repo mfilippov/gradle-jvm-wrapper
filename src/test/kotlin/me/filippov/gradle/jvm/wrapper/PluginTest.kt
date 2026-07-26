@@ -179,6 +179,24 @@ class PluginTest {
     }
 
     @Test
+    fun invalidSha256FailsAtConfigurationTime(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("project").toFile()
+        projectRoot.mkdirs()
+        withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                linuxX64JvmSha256 = "not-a-checksum"
+            }
+        """}
+
+        val output = prepareWrapperExpectingFailure(projectRoot)
+        output.shouldContain("linuxX64JvmSha256",
+            "Expected a configuration error mentioning the property:\n$output")
+    }
+
+    @Test
     fun smokeSha256Validation(@TempDir tempDir: Path) {
         val projectRoot = tempDir.resolve("folder with space").toFile()
         projectRoot.mkdirs()
@@ -198,12 +216,16 @@ class PluginTest {
             isArm -> "linuxAarch64" to defaults.linuxAarch64JvmUrl
             else -> "linuxX64" to defaults.linuxX64JvmUrl
         }
-        // Not every vendor publishes a sidecar checksum file (aka.ms links redirect
-        // unknown suffixes to a search page), so fall back to hashing the archive itself.
-        val sidecarSha256 = runCatching {
-            URI("$jvmUrl.sha256").toURL().readText()
-                .trim().split(Regex("\\s+")).firstOrNull { it.matches(Regex("[0-9a-fA-F]{64}")) }
-        }.getOrNull()
+        // Oracle publishes "<url>.sha256", Microsoft "<url>.sha256sum.txt". A missing
+        // aka.ms suffix redirects to a search page, hence the size cutoff; if no sidecar
+        // yields a checksum, fall back to hashing the archive itself.
+        val sidecarSha256 = sequenceOf("$jvmUrl.sha256", "$jvmUrl.sha256sum.txt")
+            .firstNotNullOfOrNull { sidecarUrl ->
+                runCatching {
+                    URI(sidecarUrl).toURL().readText().takeIf { it.length <= 1024 }
+                        ?.trim()?.split(Regex("\\s+"))?.firstOrNull { it.matches(Regex("[0-9a-fA-F]{64}")) }
+                }.getOrNull()
+            }
         val publishedSha256 = sidecarSha256 ?: run {
             val digest = MessageDigest.getInstance("SHA-256")
             URI(jvmUrl).toURL().openStream().use { input ->
