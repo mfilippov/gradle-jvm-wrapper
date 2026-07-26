@@ -340,17 +340,17 @@ class Plugin : Plugin<Project> {
         @rem $patchedFileStartMarker
 
         setlocal
-        set BUILD_DIR=${c.winJvmInstallDir}
+        set "BUILD_DIR=${c.winJvmInstallDir}"
 
         for /f "tokens=3 delims= " %%A in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v "PROCESSOR_ARCHITECTURE"') do set WIN_ARCH=%%A
         if "%WIN_ARCH%" equ "AMD64" (
-            set JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(c.windowsX64JvmUrl)}\
-            set JVM_URL=${c.windowsX64JvmUrl.replace("%", "%%")}
-            set JVM_SHA256=${c.windowsX64JvmSha256}
+            set "JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(c.windowsX64JvmUrl).replace("%", "%%")}\"
+            set "JVM_URL=${c.windowsX64JvmUrl.replace("%", "%%")}"
+            set "JVM_SHA256=${c.windowsX64JvmSha256}"
         ) else if "%WIN_ARCH%" equ "ARM64" (
-            set JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(c.windowsAarch64JvmUrl)}\
-            set JVM_URL=${c.windowsAarch64JvmUrl.replace("%", "%%")}
-            set JVM_SHA256=${c.windowsAarch64JvmSha256}
+            set "JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(c.windowsAarch64JvmUrl).replace("%", "%%")}\"
+            set "JVM_URL=${c.windowsAarch64JvmUrl.replace("%", "%%")}"
+            set "JVM_SHA256=${c.windowsAarch64JvmSha256}"
         ) else (
             echo Unknown architecture %WIN_ARCH%
             goto fail
@@ -449,17 +449,17 @@ class Plugin : Plugin<Project> {
         :continueWithJvm
 
         set JAVA_HOME=
-        for /d %%d in ("%JVM_TARGET_DIR%"*) do if exist "%%d\bin\java.exe" set JAVA_HOME=%%d
+        for /d %%d in ("%JVM_TARGET_DIR%"*) do if exist "%%d\bin\java.exe" set "JAVA_HOME=%%d"
         if not exist "%JAVA_HOME%\bin\java.exe" (
           if "%JVM_DOWNLOAD_ATTEMPTED%"=="0" (
             DEL /F /Q "%JVM_TARGET_DIR%.flag" 2>NUL
             goto downloadAndExtractJvm
           )
-          echo Unable to find java.exe under %JVM_TARGET_DIR%
+          echo Unable to find java.exe under "%JVM_TARGET_DIR%"
           goto fail
         )
 
-        endlocal & set JAVA_HOME=%JAVA_HOME%
+        endlocal & set "JAVA_HOME=%JAVA_HOME%"
 
         @rem $patchedFileEndMarker
     """.trimIndent() + "\n\n"
