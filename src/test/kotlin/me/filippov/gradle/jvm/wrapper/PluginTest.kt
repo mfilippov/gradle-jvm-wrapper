@@ -71,7 +71,7 @@ class PluginTest {
                 linuxX64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-linux-x64.tar.gz"
                 macAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-macos-aarch64.tar.gz"
                 macX64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-macos-x64.tar.gz"
-                windowsAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-windows-aarch64.zip"
+                windowsAarch64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.4-windows-aarch64.zip"
                 windowsX64JvmUrl ="$windowsX64Url"
             }
             
