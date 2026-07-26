@@ -1,17 +1,34 @@
 package me.filippov.gradle.jvm.wrapper
 
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledOnOs
 import org.junit.jupiter.api.condition.EnabledOnOs
 import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
+import java.io.File
 import java.net.URI
 import java.nio.file.Path
 import java.security.MessageDigest
 import java.util.*
 
 class PluginTest {
+    private val projectRoots = mutableListOf<File>()
+
+    private fun projectRoot(tempDir: Path, name: String): File =
+        tempDir.resolve(name).toFile().also {
+            it.mkdirs()
+            projectRoots.add(it)
+        }
+
+    // Runs even when a test fails: Windows may keep JDK files locked briefly, and a
+    // failed @TempDir cleanup would otherwise obscure the real assertion failure.
+    @AfterEach
+    fun cleanupProjectRoots() {
+        projectRoots.forEach { deleteWithRetries(it) }
+    }
+
     // Allows platform-specific CI (e.g. Alpine/musl) to point the tests at a compatible JDK build.
     private fun jvmUrlOverrides(): String {
         val linuxX64Url = System.getenv("TEST_LINUX_X64_JVM_URL") ?: return ""
@@ -30,8 +47,7 @@ class PluginTest {
 
     @Test
     fun smokeParallelRun(@TempDir tempDir: Path) {
-        val projectRoot = tempDir.resolve("folder with space").toFile()
-        projectRoot.mkdirs()
+        val projectRoot = projectRoot(tempDir, "folder with space")
         val jvmInstallDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm")
         val absJvmDir = jvmInstallDir.absolutePath.replace("\\", "\\\\")
 
@@ -57,7 +73,9 @@ class PluginTest {
         // runs start with an empty install dir and race for the download.
         val warmUp = gradlew(projectRoot, "hello")
         warmUp.exitCode.shouldBe(0, "Warm-up run failed:\nSTDOUT:\n${warmUp.stdout}\nSTDERR:\n${warmUp.stderr}\n")
-        jvmInstallDir.deleteRecursively()
+        // A silently failed single delete would leave the JVM in place and break
+        // the exactly-one-download assertion below; Windows may hold locks briefly.
+        deleteWithRetries(jvmInstallDir)
 
         val results = gradlewParallel(projectRoot, "hello", 2)
         results.forEach { result ->
@@ -70,13 +88,6 @@ class PluginTest {
                     results.joinToString("\n") { "STDOUT:\n${it.stdout}\nSTDERR:\n${it.stderr}\n" })
         jvmInstallDir.list()!!.size.shouldBe(1)
 
-        repeat((0..30).count()) {
-            if (!projectRoot.exists()) {
-                return@repeat
-            }
-            Thread.sleep(1000)
-            projectRoot.deleteRecursively()
-        }
     }
 
     @Test
@@ -92,8 +103,7 @@ class PluginTest {
         } else {
             Assumptions.assumeTrue(gitBash.exists(), "Git Bash is not installed")
         }
-        val projectRoot = tempDir.resolve("folder with space's").toFile()
-        projectRoot.mkdirs()
+        val projectRoot = projectRoot(tempDir, "folder with space's")
         val jvmInstallDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm")
 
         withBuildScript(projectRoot) { """
@@ -122,19 +132,11 @@ class PluginTest {
         result.exitCode.shouldBe(0, "Non zero exit code:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
         jvmInstallDir.exists().shouldBeTrue("The JVM was not installed into $jvmInstallDir")
 
-        repeat((0..30).count()) {
-            if (!projectRoot.exists()) {
-                return@repeat
-            }
-            Thread.sleep(1000)
-            projectRoot.deleteRecursively()
-        }
     }
 
     @Test
     fun smokeSelfHealAfterBrokenInstall(@TempDir tempDir: Path) {
-        val projectRoot = tempDir.resolve("folder with space").toFile()
-        projectRoot.mkdirs()
+        val projectRoot = projectRoot(tempDir, "folder with space")
         val jvmInstallDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm")
         val absJvmDir = jvmInstallDir.absolutePath.replace("\\", "\\\\")
 
@@ -180,20 +182,12 @@ class PluginTest {
             "'Hello world!' not found in output:\nSTDOUT:\n${secondRun.stdout}\nSTDERR:\n${secondRun.stderr}\n")
         secondRun.exitCode.shouldBe(0, "Non zero exit code:\nSTDOUT:\n${secondRun.stdout}\nSTDERR:\n${secondRun.stderr}\n")
 
-        repeat((0..30).count()) {
-            if (!projectRoot.exists()) {
-                return@repeat
-            }
-            Thread.sleep(1000)
-            projectRoot.deleteRecursively()
-        }
     }
 
     @Test
     @DisabledOnOs(OS.WINDOWS)
     fun staleLockReportsClearError(@TempDir tempDir: Path) {
-        val projectRoot = tempDir.resolve("folder with space").toFile()
-        projectRoot.mkdirs()
+        val projectRoot = projectRoot(tempDir, "folder with space")
         val jvmInstallDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm")
         val absJvmDir = jvmInstallDir.absolutePath.replace("\\", "\\\\")
 
@@ -226,13 +220,6 @@ class PluginTest {
         (result.stdout + result.stderr).shouldContain("The lock file",
             "Expected a stale lock error:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
 
-        repeat((0..30).count()) {
-            if (!projectRoot.exists()) {
-                return@repeat
-            }
-            Thread.sleep(1000)
-            projectRoot.deleteRecursively()
-        }
     }
 
     @Test
@@ -486,8 +473,7 @@ class PluginTest {
 
     @Test
     fun smokeSha256Validation(@TempDir tempDir: Path) {
-        val projectRoot = tempDir.resolve("folder with space").toFile()
-        projectRoot.mkdirs()
+        val projectRoot = projectRoot(tempDir, "folder with space")
         val jvmInstallDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm")
         val absJvmDir = jvmInstallDir.absolutePath.replace("\\", "\\\\")
 
@@ -569,19 +555,11 @@ class PluginTest {
             "'Hello world!' not found in output:\nSTDOUT:\n${goodRun.stdout}\nSTDERR:\n${goodRun.stderr}\n")
         goodRun.exitCode.shouldBe(0, "Non zero exit code:\nSTDOUT:\n${goodRun.stdout}\nSTDERR:\n${goodRun.stderr}\n")
 
-        repeat((0..30).count()) {
-            if (!projectRoot.exists()) {
-                return@repeat
-            }
-            Thread.sleep(1000)
-            projectRoot.deleteRecursively()
-        }
     }
 
     private fun doSmoke(tempDir: Path, windowsX64Url: String) {
         // The apostrophe covers install paths like C:\Users\O'Brien\...
-        val projectRoot = tempDir.resolve("folder with space's").toFile()
-        projectRoot.mkdirs()
+        val projectRoot = projectRoot(tempDir, "folder with space's")
         val absJvmDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm").absolutePath.replace("\\", "\\\\")
 
         withBuildScript(projectRoot) { """
@@ -657,12 +635,5 @@ class PluginTest {
 
         val jdkDirs = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm").list()!!
         jdkDirs.size.shouldBe(2)
-        repeat((0..30).count()) {
-            if (!projectRoot.exists()) {
-                return@repeat
-            }
-            Thread.sleep(1000)
-            projectRoot.deleteRecursively()
-        }
     }
 }

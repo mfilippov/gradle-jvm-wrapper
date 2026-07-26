@@ -118,6 +118,17 @@ fun prepareWrapper(projectRoot: File) {
         "Wrapper generation failed:\n${wrapperResult.output}")
 }
 
+// Windows may keep JDK files locked briefly after a gradlew run; retry the removal
+// so JUnit's @TempDir cleanup does not fail an otherwise green test.
+fun deleteWithRetries(dir: File) {
+    for (attempt in 0..30) {
+        dir.deleteRecursively()
+        if (!dir.exists()) return
+        Thread.sleep(1000)
+    }
+    error("Failed to delete $dir")
+}
+
 fun <T> T.shouldBe(expectedValue: T, message: String? = null) {
     assertEquals(expectedValue, this, message)
 }
