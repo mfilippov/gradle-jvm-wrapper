@@ -15,6 +15,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - uses: gradle/actions/setup-gradle@v4
       - name: Tests
         run: gradlew.bat build
         shell: cmd
@@ -28,6 +29,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - uses: gradle/actions/setup-gradle@v4
       - name: Tests
         run: gradlew.bat build
         shell: cmd
@@ -41,6 +43,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - uses: gradle/actions/setup-gradle@v4
       - name: Tests
         run: ./gradlew build
         shell: bash
@@ -54,6 +57,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - uses: gradle/actions/setup-gradle@v4
       - name: Tests
         run: ./gradlew build
         shell: bash
@@ -90,6 +94,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - uses: gradle/actions/setup-gradle@v4
       - name: Tests
         run: ./gradlew build
         shell: bash
@@ -103,6 +108,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - uses: gradle/actions/setup-gradle@v4
       - name: Tests
         run: ./gradlew build
         shell: bash
