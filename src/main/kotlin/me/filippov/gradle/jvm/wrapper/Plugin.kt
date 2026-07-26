@@ -397,7 +397,7 @@ class Plugin : Plugin<Project> {
          ^
         try { ^
             if ((Get-Content -LiteralPath ${'$'}flagFile -ErrorAction Ignore) -ne ${'$'}env:JVM_URL) { ^
-                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ^
+                [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; ^
                 Write-Host ('Downloading ' + ${'$'}env:JVM_URL + ' to ' + ${'$'}archiveFile); ^
                 [void](New-Item ${'$'}env:BUILD_DIR -ItemType Directory -Force); ^
                 ${'$'}downloadAttempt = 1; ^
