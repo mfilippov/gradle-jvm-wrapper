@@ -76,16 +76,48 @@ class Plugin : Plugin<Project> {
         return configured.ifEmpty { PluginExtension.defaultJvmSha256[url] ?: "" }.lowercase()
     }
 
+    // The values below are embedded into sh, batch and PowerShell sources. Everything the
+    // generated scripts cannot quote away is rejected here, at configuration time, instead
+    // of corrupting the scripts (or executing as code) on the machine of whoever runs them.
+    private fun validatedValue(name: String, value: String, forbidden: String, allowSpaces: Boolean): String {
+        val floor = if (allowSpaces) 0x20 else 0x21
+        if (value.isEmpty() || !value.all { it.code in floor..0x7e }) {
+            throw GradleException(
+                "jvmWrapper.$name must be a non-empty string of printable ASCII characters" +
+                        (if (allowSpaces) "" else " without spaces") + ", got: '$value'")
+        }
+        val bad = value.firstOrNull { it in forbidden }
+        if (bad != null) {
+            throw GradleException(
+                "jvmWrapper.$name must not contain the character '$bad', " +
+                        "it cannot be safely embedded in the generated wrapper scripts, got: '$value'")
+        }
+        return value
+    }
+
+    private fun validatedUrl(name: String, url: String) =
+        validatedValue(name, url, "\"'`\\$", allowSpaces = false)
+
+    private fun validatedUnixDir(name: String, dir: String): String {
+        validatedValue(name, dir, "\"`", allowSpaces = true)
+        if (dir.contains("$(")) {
+            throw GradleException(
+                "jvmWrapper.$name must not contain a command substitution '$(', got: '$dir'")
+        }
+        return dir
+    }
+
     private fun resolveConfig(cfg: PluginExtension): ResolvedConfig {
-        val windowsAarch64JvmUrl = cfg.windowsAarch64JvmUrl.get()
-        val windowsX64JvmUrl = cfg.windowsX64JvmUrl.get()
-        val linuxAarch64JvmUrl = cfg.linuxAarch64JvmUrl.get()
-        val linuxX64JvmUrl = cfg.linuxX64JvmUrl.get()
-        val macAarch64JvmUrl = cfg.macAarch64JvmUrl.get()
-        val macX64JvmUrl = cfg.macX64JvmUrl.get()
+        val windowsAarch64JvmUrl = validatedUrl("windowsAarch64JvmUrl", cfg.windowsAarch64JvmUrl.get())
+        val windowsX64JvmUrl = validatedUrl("windowsX64JvmUrl", cfg.windowsX64JvmUrl.get())
+        val linuxAarch64JvmUrl = validatedUrl("linuxAarch64JvmUrl", cfg.linuxAarch64JvmUrl.get())
+        val linuxX64JvmUrl = validatedUrl("linuxX64JvmUrl", cfg.linuxX64JvmUrl.get())
+        val macAarch64JvmUrl = validatedUrl("macAarch64JvmUrl", cfg.macAarch64JvmUrl.get())
+        val macX64JvmUrl = validatedUrl("macX64JvmUrl", cfg.macX64JvmUrl.get())
         return ResolvedConfig(
-            winJvmInstallDir = cfg.winJvmInstallDir.get(),
-            unixJvmInstallDir = cfg.unixJvmInstallDir.get(),
+            winJvmInstallDir = validatedValue(
+                "winJvmInstallDir", cfg.winJvmInstallDir.get(), "\"", allowSpaces = true),
+            unixJvmInstallDir = validatedUnixDir("unixJvmInstallDir", cfg.unixJvmInstallDir.get()),
             keepRosetta2 = cfg.keepRosetta2.get(),
             windowsAarch64JvmUrl = windowsAarch64JvmUrl,
             windowsX64JvmUrl = windowsX64JvmUrl,

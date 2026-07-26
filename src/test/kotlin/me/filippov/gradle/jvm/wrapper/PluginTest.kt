@@ -362,6 +362,37 @@ class PluginTest {
     }
 
     @Test
+    fun invalidConfigurationValuesFailAtConfigurationTime(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("project").toFile()
+        projectRoot.mkdirs()
+        fun buildScriptWith(configuration: String) = withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                $configuration
+            }
+        """}
+
+        // Values the generated scripts cannot quote away must be rejected up front.
+        listOf(
+            """linuxX64JvmUrl = "https://example.com/jdk with space.tar.gz"""" to "without spaces",
+            """linuxX64JvmUrl = "https://example.com/jdk\"quote.tar.gz"""" to "must not contain",
+            """linuxX64JvmUrl = "https://example.com/jdk\${'$'}{HOME}.tar.gz"""" to "must not contain",
+            """winJvmInstallDir = "C:\\path\\with\"quote"""" to "must not contain",
+            """unixJvmInstallDir = "${'$'}(rm -rf /)/jvm"""" to "command substitution",
+        ).forEach { (configuration, expectedError) ->
+            buildScriptWith(configuration)
+            prepareWrapperExpectingFailure(projectRoot)
+                .shouldContain(expectedError, "Expected '$configuration' to be rejected")
+        }
+
+        // Characters the scripts do quote correctly must stay usable (signed URLs use '&').
+        buildScriptWith("""linuxX64JvmUrl = "https://example.com/jdk.tar.gz?token=a&expires=1"""")
+        prepareWrapper(projectRoot)
+    }
+
+    @Test
     fun applyingToASubprojectFailsWithAClearError(@TempDir tempDir: Path) {
         val projectRoot = tempDir.resolve("project").toFile()
         projectRoot.resolve("sub").mkdirs()
