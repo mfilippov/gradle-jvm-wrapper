@@ -93,7 +93,7 @@ fun String.shouldContain(expectedValue: String, message: String? = null) {
 }
 
 fun String.shouldNotContain(expectedValue: String, message: String? = null) {
-    assert(!this.contains(expectedValue)){  message ?: "String '$this' not contains '$expectedValue'" }
+    assert(!this.contains(expectedValue)){  message ?: "String '$this' contains '$expectedValue'" }
 }
 
 fun String.shouldBeEmpty(message: String? = null) {
