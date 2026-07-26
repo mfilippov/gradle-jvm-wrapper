@@ -14,6 +14,9 @@ plugins {
 }
 ```
 After that you should call `wrapper` Gradle task to setup a wrapper and update the command-line scripts.
+
+Note: with the Kotlin DSL, the `=` assignment syntax in `jvmWrapper { }` requires Gradle 8.2 or newer;
+on older Gradle versions use `.set(...)` instead.
 By default the plugin uses Oracle JDK 25. You can configure it for your JVM distribution:
 
 Groovy edition:

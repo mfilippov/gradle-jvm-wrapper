@@ -56,6 +56,14 @@ fun withBuildScript(projectRoot: File, withContent: () -> String) {
     projectRoot.resolve("build.gradle.kts").writeText(withContent().trimIndent())
 }
 
+fun prepareWrapperWithArguments(projectRoot: File, vararg arguments: String): String =
+    GradleRunner.create()
+        .withProjectDir(projectRoot)
+        .withArguments(*arguments)
+        .withPluginClasspath()
+        .build()
+        .output
+
 fun prepareWrapperExpectingFailure(projectRoot: File): String =
     GradleRunner.create()
         .withProjectDir(projectRoot)
