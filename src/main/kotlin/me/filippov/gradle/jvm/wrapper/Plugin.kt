@@ -449,6 +449,8 @@ class Plugin : Plugin<Project> {
         :continueWithJvm
 
         set JAVA_HOME=
+        @rem An archive may unpack straight into the target dir (no wrapping folder).
+        if exist "%JVM_TARGET_DIR%bin\java.exe" set "JAVA_HOME=%JVM_TARGET_DIR:~0,-1%"
         for /d %%d in ("%JVM_TARGET_DIR%"*) do if exist "%%d\bin\java.exe" set "JAVA_HOME=%%d"
         if not exist "%JAVA_HOME%\bin\java.exe" (
           if "%JVM_DOWNLOAD_ATTEMPTED%"=="0" (
