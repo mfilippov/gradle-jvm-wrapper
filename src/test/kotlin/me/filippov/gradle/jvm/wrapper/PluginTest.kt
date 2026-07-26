@@ -242,6 +242,16 @@ class PluginTest {
         (badRun.stdout + badRun.stderr).shouldContain("SHA-256 mismatch",
             "Expected a checksum error:\nSTDOUT:\n${badRun.stdout}\nSTDERR:\n${badRun.stderr}\n")
 
+        // After the failure nothing must be extracted or marked as installed,
+        // and the rejected archive must be removed.
+        val leftoverFiles = jvmInstallDir.walkTopDown().filter { it.isFile }.map { it.name }.toList()
+        leftoverFiles.none { it == ".flag" }
+            .shouldBeTrue("A .flag file survived a failed validation: $leftoverFiles")
+        leftoverFiles.none { it.startsWith("gradle-jvm") }
+            .shouldBeTrue("The rejected archive was not removed: $leftoverFiles")
+        leftoverFiles.none { it.endsWith("java") || it.endsWith("java.exe") }
+            .shouldBeTrue("The JDK was extracted despite a failed validation: $leftoverFiles")
+
         // The correct checksum must pass; uppercase input checks normalization.
         buildScriptWithSha256(publishedSha256.uppercase())
         prepareWrapper(projectRoot)
