@@ -41,7 +41,11 @@ class PluginTest {
     }
 
     @Test
+    @EnabledOnOs(value = [OS.WINDOWS], architectures = ["amd64"])
     fun smokeWindowsTarGz(@TempDir tempDir: Path) {
+        // Only the windowsX64JvmUrl parameter differs from 'smoke': on any other OS,
+        // and on Windows ARM (which never selects the x64 URL), this test is an
+        // exact duplicate that re-downloads the JDKs for nothing.
         doSmoke(tempDir, "https://cache-redirector.jetbrains.com/intellij-jbr/jbr-17.0.3-windows-x64-b469.37.tar.gz")
     }
 
