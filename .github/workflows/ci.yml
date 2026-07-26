@@ -68,7 +68,7 @@ jobs:
             -e TEST_LINUX_X64_JVM_URL=https://corretto.aws/downloads/latest/amazon-corretto-21-x64-alpine-jdk.tar.gz \
             alpine:3.22 sh -c '
               set -e
-              apk add --no-cache openjdk21-jdk curl util-linux musl-utils >/dev/null
+              apk add --no-cache openjdk21-jdk curl musl-utils >/dev/null
               java -cp gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain --no-daemon --console=plain test \
                 --tests "me.filippov.gradle.jvm.wrapper.PluginTest.smokeParallelRun" \
                 --tests "me.filippov.gradle.jvm.wrapper.PluginTest.smokeSelfHealAfterBrokenInstall" \

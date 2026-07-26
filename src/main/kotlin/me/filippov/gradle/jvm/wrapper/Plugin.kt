@@ -205,7 +205,11 @@ class Plugin : Plugin<Project> {
                 ;;
             esac
         else
-            JVM_ARCH=${'$'}(linux${'$'}(getconf LONG_BIT) uname -m)
+            # Prefer the personality-aware answer (32-bit userland on a 64-bit kernel),
+            # fall back to plain uname -m where util-linux is not installed (busybox).
+            if command -v getconf >/dev/null 2>&1 && command -v "linux${'$'}(getconf LONG_BIT)" >/dev/null 2>&1; then
+                JVM_ARCH=${'$'}("linux${'$'}(getconf LONG_BIT)" uname -m)
+            fi
             case ${"$"}JVM_ARCH in
                 x86_64)
                     JVM_URL="${c.linuxX64JvmUrl}"
