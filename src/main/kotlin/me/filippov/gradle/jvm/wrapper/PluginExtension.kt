@@ -12,4 +12,11 @@ open class PluginExtension {
     var linuxX64JvmUrl = "https://download.oracle.com/java/25/archive/jdk-25.0.2_linux-x64_bin.tar.gz"
     var macAarch64JvmUrl = "https://download.oracle.com/java/25/archive/jdk-25.0.2_macos-aarch64_bin.tar.gz"
     var macX64JvmUrl = "https://download.oracle.com/java/25/archive/jdk-25.0.2_macos-x64_bin.tar.gz"
+    // Optional SHA-256 checksums of the archives above (empty value disables the check)
+    var windowsAarch64JvmSha256 = ""
+    var windowsX64JvmSha256 = ""
+    var linuxAarch64JvmSha256 = ""
+    var linuxX64JvmSha256 = ""
+    var macAarch64JvmSha256 = ""
+    var macX64JvmSha256 = ""
 }

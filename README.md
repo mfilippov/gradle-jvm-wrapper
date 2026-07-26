@@ -50,3 +50,18 @@ jvmWrapper {
     windowsX64JvmUrl = "https://aka.ms/download-jdk/microsoft-jdk-25.0.2-windows-x64.zip"
 }
 ```
+
+## SHA-256 validation
+The downloaded JVM archive can optionally be verified against an expected SHA-256 checksum.
+Add the checksum for the platforms you want to verify (an empty value disables the check):
+```kotlin
+jvmWrapper {
+    linuxAarch64JvmSha256 = "..."
+    linuxX64JvmSha256 = "..."
+    macAarch64JvmSha256 = "..."
+    macX64JvmSha256 = "..."
+    windowsAarch64JvmSha256 = "..."
+    windowsX64JvmSha256 = "..."
+}
+```
+If the checksum of the downloaded archive does not match, the build fails with a `SHA-256 mismatch` error.
