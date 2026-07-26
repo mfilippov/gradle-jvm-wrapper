@@ -124,6 +124,16 @@ class Plugin : Plugin<Project> {
             throw GradleException(
                 "jvmWrapper.$name must not contain a command substitution '$(', got: '$dir'")
         }
+        // Interior backslashes are legitimate (Windows paths under cygwin/msys) and
+        // inert inside the double-quoted assignment — except before a character the
+        // shell treats as escapable there: a trailing one escapes the closing quote,
+        // a doubled one collapses to a single, one before '$' is silently eaten.
+        if (dir.endsWith("\\") || dir.contains("\\\\") || dir.contains("\\$")) {
+            throw GradleException(
+                "jvmWrapper.$name must not contain a backslash at the end, before another " +
+                        "backslash or before a dollar sign, it would corrupt the generated " +
+                        "wrapper script, got: '$dir'")
+        }
         return dir
     }
 

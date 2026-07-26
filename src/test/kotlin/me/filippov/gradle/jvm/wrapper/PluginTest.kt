@@ -475,6 +475,9 @@ class PluginTest {
             """winJvmInstallDir = "C:\\R&D\\gradle-jvm"""" to "must not contain",
             """winJvmInstallDir = "C:\\path\\with^caret"""" to "must not contain",
             """unixJvmInstallDir = "${'$'}(rm -rf /)/jvm"""" to "command substitution",
+            """unixJvmInstallDir = "build/gradle-jvm\\"""" to "backslash",
+            """unixJvmInstallDir = "build\\\\gradle-jvm"""" to "backslash",
+            """unixJvmInstallDir = "C:\\Users\\\${'$'}dev\\gradle-jvm"""" to "backslash",
         ).forEach { (configuration, expectedError) ->
             buildScriptWith(configuration)
             prepareWrapperExpectingFailure(projectRoot)
