@@ -322,7 +322,8 @@ class Plugin : Plugin<Project> {
         ${'$'}ErrorActionPreference = 'Stop'; ^
          ^
         ${'$'}createdNew = ${'$'}false; ^
-        ${'$'}lock = New-Object System.Threading.Mutex(${'$'}true, 'Global\gradle-jvm-wrapper-lock', [ref]${'$'}createdNew); ^
+        ${'$'}lockName = 'Global\gradle-jvm-wrapper-' + '%BUILD_DIR%'.ToLowerInvariant().Replace('\', '-'); ^
+        ${'$'}lock = New-Object System.Threading.Mutex(${'$'}true, ${'$'}lockName, [ref]${'$'}createdNew); ^
         if (-not ${'$'}createdNew) { ^
             Write-Host 'Waiting for the other process to finish the JVM bootstrap'; ^
             try { [void]${'$'}lock.WaitOne(); } catch [System.Threading.AbandonedMutexException] { } ^
