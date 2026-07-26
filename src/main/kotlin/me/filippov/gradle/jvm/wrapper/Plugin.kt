@@ -368,6 +368,39 @@ class Plugin : Plugin<Project> {
         @rem $patchedFileEndMarker
     """.trimIndent() + "\n\n"
 
+    private fun extractPatchedBlock(content: String): String? {
+        val start = content.indexOf(patchedFileStartMarker)
+        val end = content.indexOf(patchedFileEndMarker)
+        if (start < 0 || end < start) return null
+        return content.substring(start, end)
+    }
+
+    private fun checkWrapperScriptsUpToDate(project: Project, cfg: PluginExtension, task: Wrapper) {
+        val requestedTasks = project.gradle.startParameter.taskNames
+        if (requestedTasks.any { it == wrapperTaskName || it.endsWith(":$wrapperTaskName") }) {
+            // The wrapper is being regenerated in this build.
+            return
+        }
+        val config = resolveConfig(cfg)
+        val outdated = listOf(
+            task.scriptFile to generateUnixJvmScript(config),
+            task.batchScript to generateWinJvmScript(config),
+        ).filter { (scriptFile, expectedScript) ->
+            scriptFile.exists() &&
+                    extractPatchedBlock(scriptFile.readText(Charsets.UTF_8).replace("\r\n", "\n")) !=
+                    extractPatchedBlock(expectedScript)
+        }.map { it.first.name }
+        if (outdated.isEmpty()) {
+            return
+        }
+        val message = "The jvmWrapper configuration does not match the generated wrapper scripts " +
+                "(${outdated.joinToString(", ")}). Run the '$wrapperTaskName' task to regenerate them."
+        if (cfg.failOnOutdatedWrapper.get()) {
+            throw GradleException(message)
+        }
+        project.logger.warn(message)
+    }
+
     private fun patchScriptFile(scriptFile: File, jvmScript: String, placeHolder: String, logger: Logger) {
         val content = scriptFile.readText(Charsets.UTF_8)
         if (content.contains(patchedFileStartMarker)) {
@@ -384,6 +417,12 @@ class Plugin : Plugin<Project> {
         val cfg = project.extensions.create(extensionName, PluginExtension::class.java)
         val unixJvmScript = project.provider { generateUnixJvmScript(resolveConfig(cfg)) }
         val winJvmScript = project.provider { generateWinJvmScript(resolveConfig(cfg)) }
+        project.afterEvaluate {
+            // Configuration-time check: file reads below become build configuration inputs,
+            // so a configuration cache entry is invalidated when the scripts change.
+            checkWrapperScriptsUpToDate(
+                project, cfg, project.tasks.named(wrapperTaskName, Wrapper::class.java).get())
+        }
         project.tasks.named(wrapperTaskName, Wrapper::class.java).configure { task ->
             task.inputs.property("unixJvmScript", unixJvmScript)
             task.inputs.property("winJvmScript", winJvmScript)

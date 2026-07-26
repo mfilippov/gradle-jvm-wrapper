@@ -28,6 +28,9 @@ abstract class PluginExtension {
 
     abstract val winJvmInstallDir: Property<String>
     abstract val keepRosetta2: Property<Boolean>
+    // Fail the build instead of warning when the generated wrapper scripts are out of
+    // sync with this configuration (the wrapper task itself is always allowed to run)
+    abstract val failOnOutdatedWrapper: Property<Boolean>
     abstract val unixJvmInstallDir: Property<String>
     abstract val windowsAarch64JvmUrl: Property<String>
     abstract val windowsX64JvmUrl: Property<String>
@@ -47,6 +50,7 @@ abstract class PluginExtension {
     init {
         winJvmInstallDir.convention("%LOCALAPPDATA%\\gradle-jvm")
         keepRosetta2.convention(false)
+        failOnOutdatedWrapper.convention(false)
         unixJvmInstallDir.convention("${"$"}{HOME}/.local/share/gradle-jvm")
         windowsAarch64JvmUrl.convention(DEFAULT_WINDOWS_AARCH64_JVM_URL)
         windowsX64JvmUrl.convention(DEFAULT_WINDOWS_X64_JVM_URL)

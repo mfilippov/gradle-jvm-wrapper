@@ -54,6 +54,17 @@ jvmWrapper {
 }
 ```
 
+## Outdated wrapper detection
+Changes in the `jvmWrapper { }` block only take effect after the `wrapper` task regenerates
+the command-line scripts. While `gradlew`/`gradlew.bat` are out of sync with the configuration,
+the plugin prints a warning on every build. To fail the build instead of warning, enable
+the strict mode (the `wrapper` task itself always stays runnable):
+```kotlin
+jvmWrapper {
+    failOnOutdatedWrapper = true
+}
+```
+
 ## SHA-256 validation
 The downloaded JVM archive is verified against an expected SHA-256 checksum.
 The default JVM URLs are validated out of the box: the vendor-published checksums for them
