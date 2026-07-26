@@ -65,9 +65,12 @@ fun prepareWrapperWithArguments(projectRoot: File, vararg arguments: String): St
         .output
 
 fun prepareWrapperExpectingFailure(projectRoot: File): String =
+    runGradleExpectingFailure(projectRoot, ":wrapper")
+
+fun runGradleExpectingFailure(projectRoot: File, vararg arguments: String): String =
     GradleRunner.create()
         .withProjectDir(projectRoot)
-        .withArguments(":wrapper")
+        .withArguments(*arguments)
         .withPluginClasspath()
         .buildAndFail()
         .output

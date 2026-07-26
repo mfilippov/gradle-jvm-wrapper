@@ -179,6 +179,105 @@ class PluginTest {
     }
 
     @Test
+    fun outdatedWrapperReportsWarning(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("project").toFile()
+        projectRoot.mkdirs()
+        val outdatedMessage = "does not match the generated wrapper scripts"
+        fun buildScriptWithUrl(url: String) = withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                linuxX64JvmUrl = "$url"
+            }
+        """}
+
+        // No wrapper scripts generated yet: nothing to compare, no warning.
+        buildScriptWithUrl(PluginExtension.DEFAULT_LINUX_X64_JVM_URL)
+        prepareWrapperWithArguments(projectRoot, "help")
+            .shouldNotContain(outdatedMessage, "No warning expected before the wrapper is generated")
+
+        prepareWrapper(projectRoot)
+        prepareWrapperWithArguments(projectRoot, "help")
+            .shouldNotContain(outdatedMessage, "No warning expected for an up-to-date wrapper")
+
+        // The configuration changed: every build warns until the wrapper is regenerated.
+        buildScriptWithUrl("https://example.com/custom-jdk-linux-x64.tar.gz")
+        prepareWrapperWithArguments(projectRoot, "help")
+            .shouldContain(outdatedMessage, "Expected a warning for an outdated wrapper")
+
+        prepareWrapper(projectRoot)
+        prepareWrapperWithArguments(projectRoot, "help")
+            .shouldNotContain(outdatedMessage, "No warning expected after regeneration")
+    }
+
+    @Test
+    fun outdatedWrapperFailsInStrictMode(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("project").toFile()
+        projectRoot.mkdirs()
+        fun buildScriptWithUrl(url: String) = withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                failOnOutdatedWrapper = true
+                linuxX64JvmUrl = "$url"
+            }
+        """}
+
+        buildScriptWithUrl(PluginExtension.DEFAULT_LINUX_X64_JVM_URL)
+        prepareWrapper(projectRoot)
+
+        buildScriptWithUrl("https://example.com/custom-jdk-linux-x64.tar.gz")
+        runGradleExpectingFailure(projectRoot, "help")
+            .shouldContain("does not match the generated wrapper scripts")
+
+        // The wrapper task itself must stay runnable to fix the situation.
+        prepareWrapper(projectRoot)
+        prepareWrapperWithArguments(projectRoot, "help")
+            .shouldNotContain("does not match the generated wrapper scripts")
+    }
+
+    @Test
+    fun outdatedWrapperCheckIsConfigurationCacheCompatible(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("project").toFile()
+        projectRoot.mkdirs()
+        val outdatedMessage = "does not match the generated wrapper scripts"
+        fun buildScriptWithUrl(url: String) = withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                linuxX64JvmUrl = "$url"
+            }
+        """}
+
+        buildScriptWithUrl(PluginExtension.DEFAULT_LINUX_X64_JVM_URL)
+        prepareWrapper(projectRoot)
+
+        val stored = prepareWrapperWithArguments(projectRoot, "help", "--configuration-cache")
+        stored.shouldContain("Configuration cache entry stored",
+            "Expected the check to be configuration cache compatible:\n$stored")
+        stored.shouldNotContain(outdatedMessage, "No warning expected for an up-to-date wrapper:\n$stored")
+
+        val reused = prepareWrapperWithArguments(projectRoot, "help", "--configuration-cache")
+        reused.shouldContain("Reusing configuration cache", "Expected cache reuse:\n$reused")
+
+        // A configuration change invalidates the entry and surfaces the warning.
+        buildScriptWithUrl("https://example.com/custom-jdk-linux-x64.tar.gz")
+        val invalidated = prepareWrapperWithArguments(projectRoot, "help", "--configuration-cache")
+        invalidated.shouldContain(outdatedMessage, "Expected a warning after a config change:\n$invalidated")
+
+        // Regenerating the wrapper changes the scripts; the file reads of the check are
+        // build configuration inputs, so the entry is invalidated and the check goes silent.
+        prepareWrapperWithArguments(projectRoot, "wrapper", "--configuration-cache")
+        val fixed = prepareWrapperWithArguments(projectRoot, "help", "--configuration-cache")
+        fixed.shouldContain("Configuration cache entry stored",
+            "Expected the entry to be invalidated by the regenerated scripts:\n$fixed")
+        fixed.shouldNotContain(outdatedMessage, "No warning expected after regeneration:\n$fixed")
+    }
+
+    @Test
     fun wrapperTaskSupportsConfigurationCache(@TempDir tempDir: Path) {
         val projectRoot = tempDir.resolve("project").toFile()
         projectRoot.mkdirs()
