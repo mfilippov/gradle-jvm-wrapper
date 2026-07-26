@@ -15,6 +15,56 @@ class PluginTest {
         doSmoke(tempDir, "https://cache-redirector.jetbrains.com/intellij-jbr/jbr-17.0.3-windows-x64-b469.37.tar.gz")
     }
 
+    @Test
+    fun smokeParallelRun(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("folder with space").toFile()
+        projectRoot.mkdirs()
+        val jvmInstallDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm")
+        val absJvmDir = jvmInstallDir.absolutePath.replace("\\", "\\\\")
+
+        withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                winJvmInstallDir = "$absJvmDir"
+                unixJvmInstallDir = "$absJvmDir"
+            }
+            tasks.register("hello") {
+                doLast {
+                    println("Hello world!")
+                }
+            }
+        """}
+
+        prepareWrapper(projectRoot)
+
+        // Warm up Gradle caches, then drop the downloaded JVM so both parallel
+        // runs start with an empty install dir and race for the download.
+        val warmUp = gradlew(projectRoot, "hello")
+        warmUp.exitCode.shouldBe(0, "Warm-up run failed:\nSTDOUT:\n${warmUp.stdout}\nSTDERR:\n${warmUp.stderr}\n")
+        jvmInstallDir.deleteRecursively()
+
+        val results = gradlewParallel(projectRoot, "hello", 2)
+        results.forEach { result ->
+            result.stdout.shouldContain("Hello world!",
+                "'Hello world!' not found in output:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
+            result.exitCode.shouldBe(0, "Non zero exit code:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
+        }
+        results.count { it.stdout.contains("Down") }.shouldBe(1,
+            "Expected exactly one process to download the JVM:\n" +
+                    results.joinToString("\n") { "STDOUT:\n${it.stdout}\nSTDERR:\n${it.stderr}\n" })
+        jvmInstallDir.list()!!.size.shouldBe(1)
+
+        repeat((0..30).count()) {
+            if (!projectRoot.exists()) {
+                return@repeat
+            }
+            Thread.sleep(1000)
+            projectRoot.deleteRecursively()
+        }
+    }
+
     private fun doSmoke(tempDir: Path, windowsX64Url: String) {
         val projectRoot = tempDir.resolve("folder with space").toFile()
         projectRoot.mkdirs()
