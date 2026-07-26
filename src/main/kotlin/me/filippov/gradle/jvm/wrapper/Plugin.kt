@@ -63,10 +63,27 @@ class Plugin : Plugin<Project> {
         return digest.fold("") { str, it -> str + "%02x".format(it) }
     }
 
-    private fun getJvmDirName(url: String) =
-        url.substringAfterLast('/').removeSuffix(".zip").removeSuffix(".tar.gz") +
-                "-" +
-                url.sha256().take(6)
+    // The query and fragment are not part of the archive name: a signed URL must not
+    // leak its token into the on-disk directory name (a '?' is illegal in Windows
+    // paths), and a rotating token must not change the install directory.
+    private fun baseArchiveUrl(url: String) = url.substringBefore('?').substringBefore('#')
+
+    private fun getJvmDirName(url: String): String {
+        val base = baseArchiveUrl(url)
+        // Replaced: the characters Windows forbids in a directory name, plus '&'
+        // and '^', which the stock template's unquoted 'set JAVA_HOME=...' cannot
+        // survive. Anything else (say, the '+' in bellsoft-jdk21.0.5+11) is kept
+        // so the derived names stay identical to the ones 0.16.0 produced.
+        val name = base.substringAfterLast('/')
+            .replace(Regex("(?i)\\.(zip|tar\\.gz|tgz)$"), "")
+            .map { if (it in "<>:\"/\\|?*&^") '-' else it }
+            .joinToString("")
+        return name + "-" + base.sha256().take(6)
+    }
+
+    // The archive type is decided here, from the URL path: runtime suffix sniffing
+    // misclassifies 'jdk.tar.gz?sig=x'.
+    private fun isZip(url: String) = baseArchiveUrl(url).lowercase().endsWith(".zip")
 
     private fun effectiveSha256(name: String, configured: String, url: String): String {
         if (configured.isNotEmpty() && !configured.matches(Regex("[0-9a-fA-F]{64}"))) {
@@ -95,6 +112,9 @@ class Plugin : Plugin<Project> {
         return value
     }
 
+    // A URL whose path carries no archive suffix stays valid: vendor "latest"
+    // redirectors (e.g. the Adoptium API) have none, and 0.16.0 treated every
+    // non-zip URL as a tar.gz — isZip() preserves that semantic.
     private fun validatedUrl(name: String, url: String) =
         validatedValue(name, url, "\"'`\\$", allowSpaces = false)
 
@@ -187,11 +207,13 @@ class Plugin : Plugin<Project> {
                 JVM_URL="${c.macX64JvmUrl}"
                 JVM_SHA256="${c.macX64JvmSha256}"
                 JVM_TARGET_DIR="${"$"}BUILD_DIR/${getJvmDirName(c.macX64JvmUrl)}"
+                JVM_ARCHIVE_TYPE=${if (isZip(c.macX64JvmUrl)) "zip" else "tar"}
                 ;;
             arm64)
                 JVM_URL="${c.macAarch64JvmUrl}"
                 JVM_SHA256="${c.macAarch64JvmSha256}"
                 JVM_TARGET_DIR="${"$"}BUILD_DIR/${getJvmDirName(c.macAarch64JvmUrl)}"
+                JVM_ARCHIVE_TYPE=${if (isZip(c.macAarch64JvmUrl)) "zip" else "tar"}
                 ;;
             *)
                 die "Unknown architecture ${"$"}JVM_ARCH"
@@ -203,11 +225,13 @@ class Plugin : Plugin<Project> {
                 JVM_URL="${c.windowsAarch64JvmUrl}"
                 JVM_SHA256="${c.windowsAarch64JvmSha256}"
                 JVM_TARGET_DIR="${"$"}BUILD_DIR/${getJvmDirName(c.windowsAarch64JvmUrl)}"
+                JVM_ARCHIVE_TYPE=${if (isZip(c.windowsAarch64JvmUrl)) "zip" else "tar"}
                 ;;
             *)
                 JVM_URL="${c.windowsX64JvmUrl}"
                 JVM_SHA256="${c.windowsX64JvmSha256}"
                 JVM_TARGET_DIR="${"$"}BUILD_DIR/${getJvmDirName(c.windowsX64JvmUrl)}"
+                JVM_ARCHIVE_TYPE=${if (isZip(c.windowsX64JvmUrl)) "zip" else "tar"}
                 ;;
             esac
         else
@@ -221,11 +245,13 @@ class Plugin : Plugin<Project> {
                     JVM_URL="${c.linuxX64JvmUrl}"
                     JVM_SHA256="${c.linuxX64JvmSha256}"
                     JVM_TARGET_DIR="${"$"}BUILD_DIR/${getJvmDirName(c.linuxX64JvmUrl)}"
+                    JVM_ARCHIVE_TYPE=${if (isZip(c.linuxX64JvmUrl)) "zip" else "tar"}
                     ;;
                 aarch64)
                     JVM_URL="${c.linuxAarch64JvmUrl}"
                     JVM_SHA256="${c.linuxAarch64JvmSha256}"
                     JVM_TARGET_DIR="${"$"}BUILD_DIR/${getJvmDirName(c.linuxAarch64JvmUrl)}"
+                    JVM_ARCHIVE_TYPE=${if (isZip(c.linuxAarch64JvmUrl)) "zip" else "tar"}
                     ;;
                 *)
                     die "Unknown architecture ${"$"}JVM_ARCH"
@@ -311,20 +337,19 @@ class Plugin : Plugin<Project> {
           rm -rf "${"$"}JVM_TARGET_DIR"
           mkdir -p "${"$"}JVM_TARGET_DIR"
 
-          case "${'$'}JVM_URL" in
-            *".zip")
-              if command -v unzip >/dev/null 2>&1; then
-                unzip "${"$"}JVM_TEMP_FILE" -d "${"$"}JVM_TARGET_DIR"
-              elif command -v cygpath >/dev/null 2>&1 && command -v powershell.exe >/dev/null 2>&1; then
-                # Git Bash ships no unzip; use the Windows PowerShell zip support.
-                JVM_ZIP_SRC=${'$'}(cygpath -w "${"$"}JVM_TEMP_FILE") JVM_ZIP_DST=${'$'}(cygpath -w "${"$"}JVM_TARGET_DIR") \
-                  powershell.exe -NoLogo -NoProfile -Command "Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory(\${'$'}env:JVM_ZIP_SRC, \${'$'}env:JVM_ZIP_DST)"
-              else
-                die "ERROR: Please install unzip"
-              fi
-              ;;
-            *) tar -x -f "${"$"}JVM_TEMP_FILE" -C "${"$"}JVM_TARGET_DIR" ;;
-          esac
+          if [ "${'$'}JVM_ARCHIVE_TYPE" = "zip" ]; then
+            if command -v unzip >/dev/null 2>&1; then
+              unzip "${"$"}JVM_TEMP_FILE" -d "${"$"}JVM_TARGET_DIR"
+            elif command -v cygpath >/dev/null 2>&1 && command -v powershell.exe >/dev/null 2>&1; then
+              # Git Bash ships no unzip; use the Windows PowerShell zip support.
+              JVM_ZIP_SRC=${'$'}(cygpath -w "${"$"}JVM_TEMP_FILE") JVM_ZIP_DST=${'$'}(cygpath -w "${"$"}JVM_TARGET_DIR") \
+                powershell.exe -NoLogo -NoProfile -Command "Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory(\${'$'}env:JVM_ZIP_SRC, \${'$'}env:JVM_ZIP_DST)"
+            else
+              die "ERROR: Please install unzip"
+            fi
+          else
+            tar -x -f "${"$"}JVM_TEMP_FILE" -C "${"$"}JVM_TARGET_DIR"
+          fi
 
           rm -f "${"$"}JVM_TEMP_FILE"
 
@@ -363,22 +388,19 @@ class Plugin : Plugin<Project> {
             set "JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(c.windowsX64JvmUrl).replace("%", "%%")}\"
             set "JVM_URL=${c.windowsX64JvmUrl.replace("%", "%%")}"
             set "JVM_SHA256=${c.windowsX64JvmSha256}"
+            set "IS_TAR_GZ=${if (isZip(c.windowsX64JvmUrl)) "0" else "1"}"
         ) else if "%WIN_ARCH%" equ "ARM64" (
             set "JVM_TARGET_DIR=%BUILD_DIR%\${getJvmDirName(c.windowsAarch64JvmUrl).replace("%", "%%")}\"
             set "JVM_URL=${c.windowsAarch64JvmUrl.replace("%", "%%")}"
             set "JVM_SHA256=${c.windowsAarch64JvmSha256}"
+            set "IS_TAR_GZ=${if (isZip(c.windowsAarch64JvmUrl)) "0" else "1"}"
         ) else (
             echo Unknown architecture %WIN_ARCH%
             goto fail
         )
 
-        set IS_TAR_GZ=0
-        set JVM_TEMP_FILE=gradle-jvm.zip
-
-        if /I "%JVM_URL:~-7%"==".tar.gz" (
-            set IS_TAR_GZ=1
-            set JVM_TEMP_FILE=gradle-jvm.tar.gz
-        )
+        set "JVM_TEMP_FILE=gradle-jvm.zip"
+        if "%IS_TAR_GZ%"=="1" set "JVM_TEMP_FILE=gradle-jvm.tar.gz"
 
         set POWERSHELL=%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe
         set JVM_DOWNLOAD_ATTEMPTED=0

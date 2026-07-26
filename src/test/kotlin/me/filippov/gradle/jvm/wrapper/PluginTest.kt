@@ -410,6 +410,50 @@ class PluginTest {
     }
 
     @Test
+    fun queryStringUrlsProduceCleanTargetDirsAndArchiveTypes(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("project").toFile()
+        projectRoot.mkdirs()
+        withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                windowsX64JvmUrl = "https://example.com/jdk.tar.gz?token=a&expires=1"
+                // Every other URL is a tar.gz so the single zip classification below
+                // can only come from the case-insensitively detected .ZIP
+                windowsAarch64JvmUrl = "https://example.com/r&d-jdk.tar.gz"
+                linuxX64JvmUrl = "https://example.com/custom-jdk.ZIP?sig=abc"
+                macX64JvmUrl = "https://example.com/bellsoft-jdk21.0.5+11-macos.tar.gz"
+            }
+        """}
+        prepareWrapper(projectRoot)
+
+        // The signed part of the URL must not leak into the on-disk directory name
+        // ('?' is illegal in Windows paths), and the archive type must be derived
+        // from the URL path, not from the raw suffix of the query string.
+        val bat = projectRoot.resolve("gradlew.bat").readText()
+        bat.lines().filter { it.contains("JVM_TARGET_DIR=") }.forEach {
+            it.shouldNotContain("?", "The query string leaked into a target dir: $it")
+        }
+        bat.shouldContain("""set "IS_TAR_GZ=1"""", "Expected the tar.gz+query URL to select tar extraction")
+        bat.shouldNotContain("""IS_TAR_GZ=0""",
+            "No zip classification expected in gradlew.bat: both windows URLs are tar.gz")
+        bat.shouldContain("\\jdk-", "Expected the target dir name to come from the URL path")
+        bat.shouldContain("\\r-d-jdk-",
+            "Expected '&' to be sanitized out of the dir name: the stock template's unquoted set cannot survive it")
+
+        val sh = projectRoot.resolve("gradlew").readText()
+        sh.lines().filter { it.contains("JVM_TARGET_DIR=") }.forEach {
+            it.shouldNotContain("?", "The query string leaked into a target dir: $it")
+        }
+        sh.lines().count { it.trim() == "JVM_ARCHIVE_TYPE=zip" }.shouldBe(1,
+            "Expected exactly the .ZIP+query URL to be classified zip, case-insensitively")
+        sh.shouldContain("/custom-jdk-", "Expected the target dir name to come from the URL path")
+        sh.shouldContain("/bellsoft-jdk21.0.5+11-macos-",
+            "Expected characters legal in a Windows dir name (the '+') to survive sanitization")
+    }
+
+    @Test
     fun invalidConfigurationValuesFailAtConfigurationTime(@TempDir tempDir: Path) {
         val projectRoot = tempDir.resolve("project").toFile()
         projectRoot.mkdirs()
