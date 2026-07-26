@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.gradle.plugin-publish") version "1.3.1"
-    id("me.filippov.gradle.jvm.wrapper") version("0.15.0")
+    id("me.filippov.gradle.jvm.wrapper") version("0.16.0")
     kotlin("jvm") version "2.3.20"
 }
 

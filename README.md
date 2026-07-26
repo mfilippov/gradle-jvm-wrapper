@@ -4,13 +4,13 @@ To use it, you need to add the plugin to your Gradle file.
 Groovy edition:
 ```groovy
 plugins {
-    id "me.filippov.gradle.jvm.wrapper" version "0.15.0"
+    id "me.filippov.gradle.jvm.wrapper" version "0.16.0"
 }
 ```
 Kotlin edition:
 ```kotlin
 plugins {
-    id("me.filippov.gradle.jvm.wrapper") version "0.15.0"
+    id("me.filippov.gradle.jvm.wrapper") version "0.16.0"
 }
 ```
 After that you should call `wrapper` Gradle task to setup a wrapper and update the command-line scripts.
@@ -19,7 +19,7 @@ By default the plugin uses Oracle JDK 25. You can configure it for your JVM dist
 Groovy edition:
 ```groovy
 plugins {
-    id "me.filippov.gradle.jvm.wrapper" version "0.15.0"
+    id "me.filippov.gradle.jvm.wrapper" version "0.16.0"
 }
 
 jvmWrapper {
@@ -36,7 +36,7 @@ jvmWrapper {
 Kotlin edition:
 ```kotlin
 plugins {
-    id("me.filippov.gradle.jvm.wrapper") version "0.15.0"
+    id("me.filippov.gradle.jvm.wrapper") version "0.16.0"
 }
 
 jvmWrapper {
