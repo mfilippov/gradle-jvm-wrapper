@@ -386,7 +386,9 @@ class Plugin : Plugin<Project> {
         ${'$'}flagFile = ${'$'}env:JVM_TARGET_DIR + '.flag'; ^
         ${'$'}archiveFile = ${'$'}env:BUILD_DIR + '\' + ${'$'}env:JVM_TEMP_FILE; ^
         ${'$'}createdNew = ${'$'}false; ^
-        ${'$'}lockName = 'Global\gradle-jvm-wrapper-' + ${'$'}env:BUILD_DIR.ToLowerInvariant().Replace('\', '-'); ^
+        ${'$'}lockDir = [System.IO.Path]::GetFullPath(${'$'}env:BUILD_DIR).TrimEnd('\').ToLowerInvariant(); ^
+        ${'$'}lockHash = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes(${'$'}lockDir))).Replace('-', ''); ^
+        ${'$'}lockName = 'Global\gradle-jvm-wrapper-' + ${'$'}lockHash; ^
         ${'$'}lock = New-Object System.Threading.Mutex(${'$'}true, ${'$'}lockName, [ref]${'$'}createdNew); ^
         if (-not ${'$'}createdNew) { ^
             Write-Host 'Waiting for the other process to finish the JVM bootstrap'; ^
