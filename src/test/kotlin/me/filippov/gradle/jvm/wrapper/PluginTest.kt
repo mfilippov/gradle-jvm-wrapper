@@ -6,6 +6,7 @@ import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
 import java.net.URI
 import java.nio.file.Path
+import java.security.MessageDigest
 import java.util.*
 
 class PluginTest {
@@ -197,8 +198,24 @@ class PluginTest {
             isArm -> "linuxAarch64" to defaults.linuxAarch64JvmUrl
             else -> "linuxX64" to defaults.linuxX64JvmUrl
         }
-        val publishedSha256 = URI("$jvmUrl.sha256").toURL().readText()
-            .trim().split(Regex("\\s+")).first { it.matches(Regex("[0-9a-fA-F]{64}")) }
+        // Not every vendor publishes a sidecar checksum file (aka.ms links redirect
+        // unknown suffixes to a search page), so fall back to hashing the archive itself.
+        val sidecarSha256 = runCatching {
+            URI("$jvmUrl.sha256").toURL().readText()
+                .trim().split(Regex("\\s+")).firstOrNull { it.matches(Regex("[0-9a-fA-F]{64}")) }
+        }.getOrNull()
+        val publishedSha256 = sidecarSha256 ?: run {
+            val digest = MessageDigest.getInstance("SHA-256")
+            URI(jvmUrl).toURL().openStream().use { input ->
+                val buffer = ByteArray(1 shl 16)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    digest.update(buffer, 0, read)
+                }
+            }
+            digest.digest().joinToString("") { "%02x".format(it) }
+        }
 
         fun buildScriptWithSha256(sha256: String) = withBuildScript(projectRoot) { """
             plugins {

@@ -65,3 +65,7 @@ jvmWrapper {
 }
 ```
 If the checksum of the downloaded archive does not match, the build fails with a `SHA-256 mismatch` error.
+
+Take the expected checksums from your JDK vendor: Oracle publishes them next to each archive
+(append `.sha256` to the download URL), Microsoft lists them on the
+[download page](https://learn.microsoft.com/en-us/java/openjdk/download).
