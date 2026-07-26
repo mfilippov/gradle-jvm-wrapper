@@ -179,6 +179,29 @@ class PluginTest {
     }
 
     @Test
+    fun wrapperTaskSupportsConfigurationCache(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("project").toFile()
+        projectRoot.mkdirs()
+        withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                winJvmInstallDir = "build\\test-temp-dir\\gradle-jvm"
+                unixJvmInstallDir = "build/test-temp-dir/gradle-jvm"
+            }
+        """}
+
+        val firstRun = prepareWrapperWithArguments(projectRoot, ":wrapper", "--configuration-cache")
+        firstRun.shouldContain("Configuration cache entry stored",
+            "Expected the first run to store a configuration cache entry:\n$firstRun")
+
+        val secondRun = prepareWrapperWithArguments(projectRoot, ":wrapper", "--configuration-cache")
+        secondRun.shouldContain("Reusing configuration cache",
+            "Expected the second run to reuse the configuration cache:\n$secondRun")
+    }
+
+    @Test
     fun invalidSha256FailsAtConfigurationTime(@TempDir tempDir: Path) {
         val projectRoot = tempDir.resolve("project").toFile()
         projectRoot.mkdirs()
@@ -205,16 +228,15 @@ class PluginTest {
 
         // The JVM URL the wrapper will pick on this platform (the plugin defaults) and
         // its published checksum from the vendor's sidecar file.
-        val defaults = PluginExtension()
         val arch = System.getProperty("os.arch").lowercase(Locale.ENGLISH)
         val isArm = arch == "aarch64" || arch == "arm64"
         val (platform, jvmUrl) = when {
-            isWindows && isArm -> "windowsAarch64" to defaults.windowsAarch64JvmUrl
-            isWindows -> "windowsX64" to defaults.windowsX64JvmUrl
-            isMac && isArm -> "macAarch64" to defaults.macAarch64JvmUrl
-            isMac -> "macX64" to defaults.macX64JvmUrl
-            isArm -> "linuxAarch64" to defaults.linuxAarch64JvmUrl
-            else -> "linuxX64" to defaults.linuxX64JvmUrl
+            isWindows && isArm -> "windowsAarch64" to PluginExtension.DEFAULT_WINDOWS_AARCH64_JVM_URL
+            isWindows -> "windowsX64" to PluginExtension.DEFAULT_WINDOWS_X64_JVM_URL
+            isMac && isArm -> "macAarch64" to PluginExtension.DEFAULT_MAC_AARCH64_JVM_URL
+            isMac -> "macX64" to PluginExtension.DEFAULT_MAC_X64_JVM_URL
+            isArm -> "linuxAarch64" to PluginExtension.DEFAULT_LINUX_AARCH64_JVM_URL
+            else -> "linuxX64" to PluginExtension.DEFAULT_LINUX_X64_JVM_URL
         }
         // Oracle publishes "<url>.sha256", Microsoft "<url>.sha256sum.txt". A missing
         // aka.ms suffix redirects to a search page, hence the size cutoff; if no sidecar
