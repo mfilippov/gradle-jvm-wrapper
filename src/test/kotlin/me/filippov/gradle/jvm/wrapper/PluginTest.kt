@@ -468,6 +468,8 @@ class PluginTest {
 
         // Values the generated scripts cannot quote away must be rejected up front.
         listOf(
+            "linuxX64JvmUrl = \"\"" to "non-empty",
+            """linuxX64JvmUrl = "https://example.com/jdkü.tar.gz"""" to "printable ASCII",
             """linuxX64JvmUrl = "https://example.com/jdk with space.tar.gz"""" to "without spaces",
             """linuxX64JvmUrl = "https://example.com/jdk\"quote.tar.gz"""" to "must not contain",
             """linuxX64JvmUrl = "https://example.com/jdk\${'$'}{HOME}.tar.gz"""" to "must not contain",
