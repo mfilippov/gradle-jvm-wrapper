@@ -525,7 +525,8 @@ class PluginTest {
     }
 
     private fun doSmoke(tempDir: Path, windowsX64Url: String) {
-        val projectRoot = tempDir.resolve("folder with space").toFile()
+        // The apostrophe covers install paths like C:\Users\O'Brien\...
+        val projectRoot = tempDir.resolve("folder with space's").toFile()
         projectRoot.mkdirs()
         val absJvmDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm").absolutePath.replace("\\", "\\\\")
 

@@ -376,12 +376,17 @@ class Plugin : Plugin<Project> {
 
         set JVM_DOWNLOAD_ATTEMPTED=1
 
+        @rem The PowerShell code reads every configurable value from the environment
+        @rem (the batch 'set' variables are inherited by the child process) instead of
+        @rem embedding expanded paths: quoting characters in a path cannot break it.
         set DOWNLOAD_AND_EXTRACT_JVM_PS1= ^
         Set-StrictMode -Version 3.0; ^
         ${'$'}ErrorActionPreference = 'Stop'; ^
          ^
+        ${'$'}flagFile = ${'$'}env:JVM_TARGET_DIR + '.flag'; ^
+        ${'$'}archiveFile = ${'$'}env:BUILD_DIR + '\' + ${'$'}env:JVM_TEMP_FILE; ^
         ${'$'}createdNew = ${'$'}false; ^
-        ${'$'}lockName = 'Global\gradle-jvm-wrapper-' + '%BUILD_DIR%'.ToLowerInvariant().Replace('\', '-'); ^
+        ${'$'}lockName = 'Global\gradle-jvm-wrapper-' + ${'$'}env:BUILD_DIR.ToLowerInvariant().Replace('\', '-'); ^
         ${'$'}lock = New-Object System.Threading.Mutex(${'$'}true, ${'$'}lockName, [ref]${'$'}createdNew); ^
         if (-not ${'$'}createdNew) { ^
             Write-Host 'Waiting for the other process to finish the JVM bootstrap'; ^
@@ -389,14 +394,14 @@ class Plugin : Plugin<Project> {
         } ^
          ^
         try { ^
-            if ((Get-Content '%JVM_TARGET_DIR%.flag' -ErrorAction Ignore) -ne '%JVM_URL%') { ^
+            if ((Get-Content -LiteralPath ${'$'}flagFile -ErrorAction Ignore) -ne ${'$'}env:JVM_URL) { ^
                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ^
-                Write-Host 'Downloading %JVM_URL% to %BUILD_DIR%\%JVM_TEMP_FILE%'; ^
-                [void](New-Item '%BUILD_DIR%' -ItemType Directory -Force); ^
+                Write-Host ('Downloading ' + ${'$'}env:JVM_URL + ' to ' + ${'$'}archiveFile); ^
+                [void](New-Item ${'$'}env:BUILD_DIR -ItemType Directory -Force); ^
                 ${'$'}downloadAttempt = 1; ^
                 while (${'$'}true) { ^
                     try { ^
-                        (New-Object Net.WebClient).DownloadFile('%JVM_URL%', '%BUILD_DIR%\%JVM_TEMP_FILE%'); ^
+                        (New-Object Net.WebClient).DownloadFile(${'$'}env:JVM_URL, ${'$'}archiveFile); ^
                         break; ^
                     } catch { ^
                         if (${'$'}downloadAttempt -ge 5) { throw; } ^
@@ -406,30 +411,30 @@ class Plugin : Plugin<Project> {
                 } ^
                  ^
                 if (-not [string]::IsNullOrEmpty(${'$'}env:JVM_SHA256)) { ^
-                    ${'$'}sha256Stream = [System.IO.File]::OpenRead('%BUILD_DIR%\%JVM_TEMP_FILE%'); ^
+                    ${'$'}sha256Stream = [System.IO.File]::OpenRead(${'$'}archiveFile); ^
                     try { ${'$'}hashBytes = [System.Security.Cryptography.SHA256]::Create().ComputeHash(${'$'}sha256Stream); } finally { ${'$'}sha256Stream.Close(); } ^
                     ${'$'}actualSha256 = ([System.BitConverter]::ToString(${'$'}hashBytes) -replace '-', '').ToLowerInvariant(); ^
                     if (${'$'}actualSha256 -ne ${'$'}env:JVM_SHA256) { ^
-                        Remove-Item '%BUILD_DIR%\%JVM_TEMP_FILE%'; ^
-                        throw ('SHA-256 mismatch for %JVM_URL%: expected ' + ${'$'}env:JVM_SHA256 + ', actual ' + ${'$'}actualSha256); ^
+                        Remove-Item -LiteralPath ${'$'}archiveFile; ^
+                        throw ('SHA-256 mismatch for ' + ${'$'}env:JVM_URL + ': expected ' + ${'$'}env:JVM_SHA256 + ', actual ' + ${'$'}actualSha256); ^
                     } ^
                 } ^
                  ^
-                Write-Host 'Extracting %BUILD_DIR%\%JVM_TEMP_FILE% to %JVM_TARGET_DIR%'; ^
-                if (Test-Path '%JVM_TARGET_DIR%') { ^
-                    Remove-Item '%JVM_TARGET_DIR%' -Recurse -Force; ^
+                Write-Host ('Extracting ' + ${'$'}archiveFile + ' to ' + ${'$'}env:JVM_TARGET_DIR); ^
+                if (Test-Path -LiteralPath ${'$'}env:JVM_TARGET_DIR) { ^
+                    Remove-Item -LiteralPath ${'$'}env:JVM_TARGET_DIR -Recurse -Force; ^
                 } ^
-                [void](New-Item '%JVM_TARGET_DIR%' -ItemType Directory -Force); ^
-                if ('%IS_TAR_GZ%' -eq '1') { ^
-                    tar -x -f '%BUILD_DIR%\%JVM_TEMP_FILE%' -C '%JVM_TARGET_DIR%.'; ^
+                [void](New-Item ${'$'}env:JVM_TARGET_DIR -ItemType Directory -Force); ^
+                if (${'$'}env:IS_TAR_GZ -eq '1') { ^
+                    tar -x -f ${'$'}archiveFile -C (${'$'}env:JVM_TARGET_DIR + '.'); ^
                     if (${'$'}LASTEXITCODE -ne 0) { throw 'tar extraction failed'; } ^
                 } else { ^
                     Add-Type -A 'System.IO.Compression.FileSystem'; ^
-                    [IO.Compression.ZipFile]::ExtractToDirectory('%BUILD_DIR%\%JVM_TEMP_FILE%', '%JVM_TARGET_DIR%'); ^
+                    [IO.Compression.ZipFile]::ExtractToDirectory(${'$'}archiveFile, ${'$'}env:JVM_TARGET_DIR); ^
                 } ^
-                Remove-Item '%BUILD_DIR%\%JVM_TEMP_FILE%'; ^
+                Remove-Item -LiteralPath ${'$'}archiveFile; ^
                  ^
-                Set-Content '%JVM_TARGET_DIR%.flag' -Value '%JVM_URL%'; ^
+                Set-Content -LiteralPath ${'$'}flagFile -Value ${'$'}env:JVM_URL; ^
             } ^
         } ^
         finally { ^
