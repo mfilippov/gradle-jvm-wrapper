@@ -145,9 +145,18 @@ class Plugin : Plugin<Project> {
                 ;;
             esac
         elif [ "${"$"}cygwin" = "true" ] || [ "${"$"}msys" = "true" ]; then
-            JVM_URL=${c.windowsX64JvmUrl}
-            JVM_SHA256=${c.windowsX64JvmSha256}
-            JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(c.windowsX64JvmUrl)}
+            case ${"$"}JVM_ARCH in
+            aarch64 | arm64)
+                JVM_URL=${c.windowsAarch64JvmUrl}
+                JVM_SHA256=${c.windowsAarch64JvmSha256}
+                JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(c.windowsAarch64JvmUrl)}
+                ;;
+            *)
+                JVM_URL=${c.windowsX64JvmUrl}
+                JVM_SHA256=${c.windowsX64JvmSha256}
+                JVM_TARGET_DIR=${"$"}BUILD_DIR/${getJvmDirName(c.windowsX64JvmUrl)}
+                ;;
+            esac
         else
             JVM_ARCH=${'$'}(linux${'$'}(getconf LONG_BIT) uname -m)
             case ${"$"}JVM_ARCH in
