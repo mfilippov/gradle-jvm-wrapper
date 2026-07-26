@@ -18,6 +18,25 @@ class Plugin : Plugin<Project> {
         private const val winPatchPlaceHolder = "@rem Find java.exe"
         const val wrapperTaskName = "wrapper"
         const val extensionName = "jvmWrapper"
+
+        // Returns null when the script is already patched. Fails instead of silently
+        // producing an unpatched script when the placeholder is not in the template:
+        // otherwise every subsequent build would report the wrapper as outdated with
+        // no way to fix it by re-running the wrapper task.
+        internal fun patchedScriptContent(
+            scriptName: String, content: String, jvmScript: String, placeHolder: String): String? {
+            if (content.contains(patchedFileStartMarker)) {
+                return null
+            }
+            if (!content.contains(placeHolder)) {
+                throw GradleException(
+                    "Unable to patch $scriptName: the placeholder '$placeHolder' was not found. " +
+                            "The wrapper script layout of this Gradle version is not supported " +
+                            "by the gradle-jvm-wrapper plugin.")
+            }
+            val script = if (content.contains("\r\n")) jvmScript.replace("\n", "\r\n") else jvmScript
+            return content.replace(placeHolder, script + placeHolder)
+        }
     }
 
     private data class ResolvedConfig(
@@ -403,13 +422,13 @@ class Plugin : Plugin<Project> {
 
     private fun patchScriptFile(scriptFile: File, jvmScript: String, placeHolder: String, logger: Logger) {
         val content = scriptFile.readText(Charsets.UTF_8)
-        if (content.contains(patchedFileStartMarker)) {
+        val patched = patchedScriptContent(scriptFile.name, content, jvmScript, placeHolder)
+        if (patched == null) {
             logger.debug("{} is up-to-date", scriptFile)
             return
         }
         logger.debug("Patch {}", scriptFile)
-        val script = if (content.contains("\r\n")) jvmScript.replace("\n", "\r\n") else jvmScript
-        scriptFile.writeText(content.replace(placeHolder, script + placeHolder), Charsets.UTF_8)
+        scriptFile.writeText(patched, Charsets.UTF_8)
         logger.debug("{} patched", scriptFile)
     }
 
