@@ -184,8 +184,9 @@ class Plugin : Plugin<Project> {
           "${'$'}@"
         }
         lock_owner_is_alive () {
-          # kill -0 fails with EPERM for a live process of another user; ps confirms.
-          kill -0 "${"$"}1" 2>/dev/null || ps -p "${"$"}1" >/dev/null 2>&1
+          # kill -0 fails with EPERM for a live process of another user; /proc covers
+          # Linux incl. busybox (whose ps has no -p), ps covers macOS and the rest.
+          kill -0 "${"$"}1" 2>/dev/null || [ -e "/proc/${"$"}1" ] || ps -p "${"$"}1" >/dev/null 2>&1
         }
         find_java_home () {
           JAVA_HOME=
@@ -503,6 +504,9 @@ class Plugin : Plugin<Project> {
         @rem An archive may unpack straight into the target dir (no wrapping folder).
         if exist "%JVM_TARGET_DIR%bin\java.exe" set "JAVA_HOME=%JVM_TARGET_DIR:~0,-1%"
         for /d %%d in ("%JVM_TARGET_DIR%"*) do if exist "%%d\bin\java.exe" set "JAVA_HOME=%%d"
+        @rem With no candidate at all, '%JAVA_HOME%\bin\java.exe' would test the
+        @rem current drive's root; point at a path that certainly does not exist.
+        if "%JAVA_HOME%"=="" set "JAVA_HOME=%JVM_TARGET_DIR%gradle-jvm-wrapper-no-java-found"
         if not exist "%JAVA_HOME%\bin\java.exe" (
           if "%JVM_DOWNLOAD_ATTEMPTED%"=="0" (
             DEL /F /Q "%JVM_TARGET_DIR%.flag" 2>NUL
