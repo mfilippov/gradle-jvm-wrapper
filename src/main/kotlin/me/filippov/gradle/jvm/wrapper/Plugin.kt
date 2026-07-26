@@ -42,6 +42,9 @@ class Plugin : Plugin<Project> {
                       done
                       "${'$'}@"
                     }
+                    jvm_is_up_to_date () {
+                      [ -n "${'$'}(ls "${'$'}JVM_TARGET_DIR" 2>/dev/null)" ] && grep -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null
+                    }
                     KEEP_ROSETTA2=${cfg.keepRosetta2}
                     BUILD_DIR="${cfg.unixJvmInstallDir}"
                     JVM_ARCH=${'$'}(uname -m)
@@ -85,7 +88,7 @@ class Plugin : Plugin<Project> {
             
                     set -e
             
-                    if grep -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null; then
+                    if jvm_is_up_to_date; then
                         # Everything is up-to-date in ${"$"}JVM_TARGET_DIR, do nothing
                         true
                     else
@@ -94,14 +97,27 @@ class Plugin : Plugin<Project> {
                       LOCK_FILE=${"$"}BUILD_DIR/.gradle-jvm-lock.pid
                       TMP_LOCK_FILE=${"$"}BUILD_DIR/.tmp.${'$'}${'$'}.pid
                       echo ${'$'}${'$'} >"${"$"}TMP_LOCK_FILE"
+                      LN_FAILED_COUNT=0
                       while ! ln "${"$"}TMP_LOCK_FILE" "${"$"}LOCK_FILE" 2>/dev/null; do
+                        if [ ! -e "${"$"}LOCK_FILE" ]; then
+                          # ln failed, but there is no lock file: either the owner has just released it
+                          # (retry will succeed), or the filesystem does not support hard links.
+                          LN_FAILED_COUNT=${'$'}((LN_FAILED_COUNT + 1))
+                          if [ "${"$"}LN_FAILED_COUNT" -ge 10 ]; then
+                            rm -f "${"$"}TMP_LOCK_FILE"
+                            die "ERROR: Unable to create the lock file ${"$"}LOCK_FILE. Check that the filesystem supports hard links."
+                          fi
+                          sleep 1
+                          continue
+                        fi
+                        LN_FAILED_COUNT=0
                         LOCK_OWNER=${'$'}(cat "${"$"}LOCK_FILE" 2>/dev/null || true)
-                        while [ -n "${"$"}LOCK_OWNER" ] && ps -p "${"$"}LOCK_OWNER" >/dev/null; do
+                        while [ -n "${"$"}LOCK_OWNER" ] && kill -0 "${"$"}LOCK_OWNER" 2>/dev/null; do
                           warn "Waiting for the process ${"$"}LOCK_OWNER to finish the JVM bootstrap"
                           sleep 1
                           LOCK_OWNER=${'$'}(cat "${"$"}LOCK_FILE" 2>/dev/null || true)
                           # Hurry up, bootstrap is ready..
-                          if grep -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null; then
+                          if jvm_is_up_to_date; then
                             rm -f "${"$"}TMP_LOCK_FILE"
                             break 3  # Note: goto out of the outer if-else block.
                           fi
@@ -112,7 +128,7 @@ class Plugin : Plugin<Project> {
                       done
                       trap 'rm -f "${"$"}LOCK_FILE"' EXIT
                       rm "${"$"}TMP_LOCK_FILE"
-                      if ! grep -q -x "${'$'}JVM_URL" "${'$'}JVM_TARGET_DIR/.flag" 2>/dev/null; then
+                      if ! jvm_is_up_to_date; then
                       echo "Downloading ${"$"}JVM_URL to ${"$"}JVM_TEMP_FILE"
             
                       rm -f "${"$"}JVM_TEMP_FILE"
@@ -192,6 +208,7 @@ class Plugin : Plugin<Project> {
                     )
 
                     set POWERSHELL=%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe
+                    set JVM_DOWNLOAD_ATTEMPTED=0
 
                     if not exist "%JVM_TARGET_DIR%.flag" goto downloadAndExtractJvm
 
@@ -199,6 +216,8 @@ class Plugin : Plugin<Project> {
                     if "%CURRENT_FLAG%" == "%JVM_URL%" goto continueWithJvm
 
                     :downloadAndExtractJvm
+
+                    set JVM_DOWNLOAD_ATTEMPTED=1
 
                     set DOWNLOAD_AND_EXTRACT_JVM_PS1= ^
                     Set-StrictMode -Version 3.0; ^
@@ -247,6 +266,10 @@ class Plugin : Plugin<Project> {
                     set JAVA_HOME=
                     for /d %%d in ("%JVM_TARGET_DIR%"*) do if exist "%%d\bin\java.exe" set JAVA_HOME=%%d
                     if not exist "%JAVA_HOME%\bin\java.exe" (
+                      if "%JVM_DOWNLOAD_ATTEMPTED%"=="0" (
+                        DEL /F /Q "%JVM_TARGET_DIR%.flag" 2>NUL
+                        goto downloadAndExtractJvm
+                      )
                       echo Unable to find java.exe under %JVM_TARGET_DIR%
                       goto fail
                     )
