@@ -150,6 +150,10 @@ class Plugin : Plugin<Project> {
           done
           "${'$'}@"
         }
+        lock_owner_is_alive () {
+          # kill -0 fails with EPERM for a live process of another user; ps confirms.
+          kill -0 "${"$"}1" 2>/dev/null || ps -p "${"$"}1" >/dev/null 2>&1
+        }
         find_java_home () {
           JAVA_HOME=
           for d in "${"$"}JVM_TARGET_DIR" "${"$"}JVM_TARGET_DIR"/* "${"$"}JVM_TARGET_DIR"/Contents/Home "${"$"}JVM_TARGET_DIR"/*/Contents/Home; do
@@ -245,7 +249,7 @@ class Plugin : Plugin<Project> {
             fi
             LN_FAILED_COUNT=0
             LOCK_OWNER=${'$'}(cat "${"$"}LOCK_FILE" 2>/dev/null || true)
-            while [ -n "${"$"}LOCK_OWNER" ] && kill -0 "${"$"}LOCK_OWNER" 2>/dev/null; do
+            while [ -n "${"$"}LOCK_OWNER" ] && lock_owner_is_alive "${"$"}LOCK_OWNER"; do
               warn "Waiting for the process ${"$"}LOCK_OWNER to finish the JVM bootstrap"
               sleep 1
               LOCK_OWNER=${'$'}(cat "${"$"}LOCK_FILE" 2>/dev/null || true)
@@ -256,10 +260,12 @@ class Plugin : Plugin<Project> {
               fi
             done
             if [ -n "${"$"}LOCK_OWNER" ] && grep -F -q -x "${"$"}LOCK_OWNER" "${"$"}LOCK_FILE" 2>/dev/null; then
+              rm -f "${"$"}TMP_LOCK_FILE"
               die "ERROR: The lock file ${"$"}LOCK_FILE still exists on disk after the owner process ${"$"}LOCK_OWNER exited"
             fi
           done
           trap 'rm -f "${"$"}LOCK_FILE"' EXIT
+          trap 'rm -f "${"$"}LOCK_FILE"; exit 1' INT TERM HUP
           rm "${"$"}TMP_LOCK_FILE"
           if ! jvm_is_up_to_date; then
           echo "Downloading ${"$"}JVM_URL to ${"$"}JVM_TEMP_FILE"
@@ -305,7 +311,7 @@ class Plugin : Plugin<Project> {
           echo "${"$"}JVM_URL" >"${"$"}JVM_TARGET_DIR/.flag"
           fi
           rm "${"$"}LOCK_FILE"
-          trap - EXIT
+          trap - EXIT INT TERM HUP
           break
         done
         fi
