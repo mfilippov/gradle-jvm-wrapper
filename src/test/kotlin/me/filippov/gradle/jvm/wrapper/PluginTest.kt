@@ -1,10 +1,18 @@
 package me.filippov.gradle.jvm.wrapper
 
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.DisabledOnOs
+import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 
 class PluginTest {
+    // Allows platform-specific CI (e.g. Alpine/musl) to point the tests at a compatible JDK build.
+    private fun jvmUrlOverrides(): String {
+        val linuxX64Url = System.getenv("TEST_LINUX_X64_JVM_URL") ?: return ""
+        return """linuxX64JvmUrl = "$linuxX64Url""""
+    }
+
     @Test
     fun smoke(@TempDir tempDir: Path) {
         doSmoke(tempDir, "https://download.oracle.com/java/18/archive/jdk-18.0.1.1_windows-x64_bin.zip")
@@ -29,6 +37,7 @@ class PluginTest {
             jvmWrapper {
                 winJvmInstallDir = "$absJvmDir"
                 unixJvmInstallDir = "$absJvmDir"
+                ${jvmUrlOverrides()}
             }
             tasks.register("hello") {
                 doLast {
@@ -55,6 +64,107 @@ class PluginTest {
             "Expected exactly one process to download the JVM:\n" +
                     results.joinToString("\n") { "STDOUT:\n${it.stdout}\nSTDERR:\n${it.stderr}\n" })
         jvmInstallDir.list()!!.size.shouldBe(1)
+
+        repeat((0..30).count()) {
+            if (!projectRoot.exists()) {
+                return@repeat
+            }
+            Thread.sleep(1000)
+            projectRoot.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun smokeSelfHealAfterBrokenInstall(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("folder with space").toFile()
+        projectRoot.mkdirs()
+        val jvmInstallDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm")
+        val absJvmDir = jvmInstallDir.absolutePath.replace("\\", "\\\\")
+
+        withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                winJvmInstallDir = "$absJvmDir"
+                unixJvmInstallDir = "$absJvmDir"
+                ${jvmUrlOverrides()}
+            }
+            tasks.register("hello") {
+                doLast {
+                    println("Hello world!")
+                }
+            }
+        """}
+
+        prepareWrapper(projectRoot)
+
+        val firstRun = gradlew(projectRoot, "hello")
+        firstRun.exitCode.shouldBe(0, "First run failed:\nSTDOUT:\n${firstRun.stdout}\nSTDERR:\n${firstRun.stderr}\n")
+
+        // Simulate a broken installation: the JDK content is gone, but the .flag survived.
+        // Retry the removal: on Windows the JDK files may be briefly locked after the first run.
+        val jvmTargetDir = jvmInstallDir.listFiles()!!.single()
+        for (attempt in 0..30) {
+            jvmTargetDir.listFiles()!!.filter { it.name != ".flag" }.forEach { it.deleteRecursively() }
+            if (jvmTargetDir.listFiles()!!.all { it.name == ".flag" }) break
+            Thread.sleep(1000)
+        }
+        jvmTargetDir.listFiles()!!.all { it.name == ".flag" }
+            .shouldBeTrue("Failed to remove the JDK content from $jvmTargetDir")
+
+        val secondRun = gradlew(projectRoot, "hello")
+        secondRun.stdout.shouldContain("Down",
+            "Expected the JVM to be re-downloaded:\nSTDOUT:\n${secondRun.stdout}\nSTDERR:\n${secondRun.stderr}\n")
+        secondRun.stdout.shouldContain("Hello world!",
+            "'Hello world!' not found in output:\nSTDOUT:\n${secondRun.stdout}\nSTDERR:\n${secondRun.stderr}\n")
+        secondRun.exitCode.shouldBe(0, "Non zero exit code:\nSTDOUT:\n${secondRun.stdout}\nSTDERR:\n${secondRun.stderr}\n")
+
+        repeat((0..30).count()) {
+            if (!projectRoot.exists()) {
+                return@repeat
+            }
+            Thread.sleep(1000)
+            projectRoot.deleteRecursively()
+        }
+    }
+
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    fun staleLockReportsClearError(@TempDir tempDir: Path) {
+        val projectRoot = tempDir.resolve("folder with space").toFile()
+        projectRoot.mkdirs()
+        val jvmInstallDir = projectRoot.resolve("build").resolve("test-temp-dir").resolve("gradle-jvm")
+        val absJvmDir = jvmInstallDir.absolutePath.replace("\\", "\\\\")
+
+        withBuildScript(projectRoot) { """
+            plugins {
+              id("me.filippov.gradle.jvm.wrapper")
+            }
+            jvmWrapper {
+                winJvmInstallDir = "$absJvmDir"
+                unixJvmInstallDir = "$absJvmDir"
+                ${jvmUrlOverrides()}
+            }
+            tasks.register("hello") {
+                doLast {
+                    println("Hello world!")
+                }
+            }
+        """}
+
+        prepareWrapper(projectRoot)
+
+        // A lock file whose owner is long dead: the wrapper must fail with a clear error
+        // instead of corrupting the installation or waiting forever.
+        jvmInstallDir.mkdirs()
+        jvmInstallDir.resolve(".gradle-jvm-lock.pid").writeText("99999999")
+
+        val result = gradlew(projectRoot, "hello")
+        (result.exitCode != 0).shouldBeTrue(
+            "Expected a failure, got exit code 0:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
+        (result.stdout + result.stderr).shouldContain("The lock file",
+            "Expected a stale lock error:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
 
         repeat((0..30).count()) {
             if (!projectRoot.exists()) {
