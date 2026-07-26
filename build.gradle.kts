@@ -38,7 +38,7 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
-version = "0.16.0"
+version = "0.17.0"
 group = "me.filippov.gradle.jvm.wrapper"
 
 gradlePlugin {
