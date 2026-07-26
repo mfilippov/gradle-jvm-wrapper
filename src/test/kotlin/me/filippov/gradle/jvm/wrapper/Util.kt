@@ -3,6 +3,7 @@ package me.filippov.gradle.jvm.wrapper
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import java.io.File
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -134,17 +135,17 @@ fun <T> T.shouldBe(expectedValue: T, message: String? = null) {
 }
 
 fun String.shouldContain(expectedValue: String, message: String? = null) {
-    assert(this.contains(expectedValue)){  message ?: "String '$this' not contains '$expectedValue'" }
+    assertTrue(this.contains(expectedValue)) { message ?: "String '$this' does not contain '$expectedValue'" }
 }
 
 fun String.shouldNotContain(expectedValue: String, message: String? = null) {
-    assert(!this.contains(expectedValue)){  message ?: "String '$this' contains '$expectedValue'" }
+    assertTrue(!this.contains(expectedValue)) { message ?: "String '$this' contains '$expectedValue'" }
 }
 
 fun String.shouldBeEmpty(message: String? = null) {
-    assert(this.isEmpty()) { message ?: "String '$this' is not empty" }
+    assertTrue(this.isEmpty()) { message ?: "String '$this' is not empty" }
 }
 
 fun Boolean.shouldBeTrue(message: String? = null) {
-    assert(this) { message ?: "Value should be true" }
+    assertTrue(this) { message ?: "Value should be true" }
 }
