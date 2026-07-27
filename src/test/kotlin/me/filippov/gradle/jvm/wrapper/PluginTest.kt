@@ -432,7 +432,9 @@ class PluginTest {
         // ('?' is illegal in Windows paths), and the archive type must be derived
         // from the URL path, not from the raw suffix of the query string.
         val bat = projectRoot.resolve("gradlew.bat").readText()
-        bat.lines().filter { it.contains("JVM_TARGET_DIR=") }.forEach {
+        val batTargetDirs = bat.lines().filter { it.contains("JVM_TARGET_DIR=") }
+        batTargetDirs.isNotEmpty().shouldBeTrue("No JVM_TARGET_DIR lines found in gradlew.bat")
+        batTargetDirs.forEach {
             it.shouldNotContain("?", "The query string leaked into a target dir: $it")
         }
         bat.shouldContain("""set "IS_TAR_GZ=1"""", "Expected the tar.gz+query URL to select tar extraction")
@@ -443,7 +445,9 @@ class PluginTest {
             "Expected '&' to be sanitized out of the dir name: the stock template's unquoted set cannot survive it")
 
         val sh = projectRoot.resolve("gradlew").readText()
-        sh.lines().filter { it.contains("JVM_TARGET_DIR=") }.forEach {
+        val shTargetDirs = sh.lines().filter { it.contains("JVM_TARGET_DIR=") }
+        shTargetDirs.isNotEmpty().shouldBeTrue("No JVM_TARGET_DIR lines found in gradlew")
+        shTargetDirs.forEach {
             it.shouldNotContain("?", "The query string leaked into a target dir: $it")
         }
         sh.lines().count { it.trim() == "JVM_ARCHIVE_TYPE=zip" }.shouldBe(1,

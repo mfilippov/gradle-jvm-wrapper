@@ -31,10 +31,14 @@ private fun gradlewProcessBuilder(projectRoot: File, task: String): ProcessBuild
 }
 
 // destroyForcibly alone kills only the direct child (cmd.exe/sh); a surviving java
-// grandchild would keep @TempDir files locked and the pipes open.
+// grandchild would keep @TempDir files locked and the pipes open. Best effort: a
+// grandchild spawned between the snapshot and the parent's (asynchronous) death
+// can still slip through — the re-sweep narrows the window, not closes it.
 fun killTree(process: Process) {
-    process.toHandle().descendants().forEach { it.destroyForcibly() }
+    val descendants = process.toHandle().descendants().toList()
     process.destroyForcibly()
+    descendants.forEach { it.destroyForcibly() }
+    process.toHandle().descendants().forEach { it.destroyForcibly() }
 }
 
 fun runProcess(builder: ProcessBuilder, timeoutMinutes: Long = 10): TaskResult {
@@ -70,19 +74,25 @@ fun gradlewInGitBash(projectRoot: File, task: String): TaskResult {
 }
 
 fun gradlewParallel(projectRoot: File, task: String, count: Int): List<TaskResult> {
-    val processes = List(count) { gradlewProcessBuilder(projectRoot, task).start() }
+    val processes = mutableListOf<Process>()
     try {
+        repeat(count) { processes.add(gradlewProcessBuilder(projectRoot, task).start()) }
         val outputs = processes.map { process ->
             CompletableFuture.supplyAsync { process.inputStream.bufferedReader().readText() } to
                     CompletableFuture.supplyAsync { process.errorStream.bufferedReader().readText() }
         }
         return processes.mapIndexed { i, process ->
-            if (!process.waitFor(10, TimeUnit.MINUTES)) error("Process timeout error")
+            if (!process.waitFor(10, TimeUnit.MINUTES)) {
+                killTree(process)
+                val out = runCatching { outputs[i].first.get(10, TimeUnit.SECONDS) }.getOrDefault("<unavailable>")
+                val err = runCatching { outputs[i].second.get(10, TimeUnit.SECONDS) }.getOrDefault("<unavailable>")
+                error("Process $i timed out after 10 minutes\nSTDOUT:\n$out\nSTDERR:\n$err")
+            }
             TaskResult(process.exitValue(),
                 outputs[i].first.get(1, TimeUnit.MINUTES), outputs[i].second.get(1, TimeUnit.MINUTES))
         }
     } finally {
-        // A timeout of process 0 must not leak the still-running siblings.
+        // A timeout or a failed start() must not leak the still-running siblings.
         processes.forEach { if (it.isAlive) killTree(it) }
     }
 }
