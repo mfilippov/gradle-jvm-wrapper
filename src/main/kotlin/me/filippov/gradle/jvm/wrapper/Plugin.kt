@@ -214,7 +214,6 @@ class Plugin : Plugin<Project> {
             # quote character — convert to the C:/... form up front.
             BUILD_DIR=${'$'}(cygpath -m "${"$"}BUILD_DIR")
         fi
-        JVM_TEMP_FILE="${"$"}BUILD_DIR/gradle-jvm-temp.tar.gz"
         if [ "${"$"}darwin" = "true" ]; then
             case ${"$"}JVM_ARCH in
             x86_64)
@@ -271,6 +270,12 @@ class Plugin : Plugin<Project> {
                     die "Unknown architecture ${"$"}JVM_ARCH"
                     ;;
                 esac
+        fi
+
+        if [ "${"$"}JVM_ARCHIVE_TYPE" = "zip" ]; then
+            JVM_TEMP_FILE="${"$"}BUILD_DIR/gradle-jvm-temp.zip"
+        else
+            JVM_TEMP_FILE="${"$"}BUILD_DIR/gradle-jvm-temp.tar.gz"
         fi
 
         set -e
@@ -353,7 +358,7 @@ class Plugin : Plugin<Project> {
 
           if [ "${'$'}JVM_ARCHIVE_TYPE" = "zip" ]; then
             if command -v unzip >/dev/null 2>&1; then
-              unzip "${"$"}JVM_TEMP_FILE" -d "${"$"}JVM_TARGET_DIR"
+              unzip -o "${"$"}JVM_TEMP_FILE" -d "${"$"}JVM_TARGET_DIR"
             elif command -v cygpath >/dev/null 2>&1 && command -v powershell.exe >/dev/null 2>&1; then
               # Git Bash ships no unzip; use the Windows PowerShell zip support.
               JVM_ZIP_SRC=${'$'}(cygpath -w "${"$"}JVM_TEMP_FILE") JVM_ZIP_DST=${'$'}(cygpath -w "${"$"}JVM_TARGET_DIR") \
