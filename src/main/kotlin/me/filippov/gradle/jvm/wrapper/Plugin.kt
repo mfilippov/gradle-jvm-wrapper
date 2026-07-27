@@ -358,7 +358,8 @@ class Plugin : Plugin<Project> {
 
           if [ "${'$'}JVM_ARCHIVE_TYPE" = "zip" ]; then
             if command -v unzip >/dev/null 2>&1; then
-              unzip -o "${"$"}JVM_TEMP_FILE" -d "${"$"}JVM_TARGET_DIR"
+              # unzip exits 1 for warnings even when every entry extracted fine
+              unzip -o "${"$"}JVM_TEMP_FILE" -d "${"$"}JVM_TARGET_DIR" || [ ${"$"}? -eq 1 ]
             elif command -v cygpath >/dev/null 2>&1 && command -v powershell.exe >/dev/null 2>&1; then
               # Git Bash ships no unzip; use the Windows PowerShell zip support.
               JVM_ZIP_SRC=${'$'}(cygpath -w "${"$"}JVM_TEMP_FILE") JVM_ZIP_DST=${'$'}(cygpath -w "${"$"}JVM_TARGET_DIR") \
