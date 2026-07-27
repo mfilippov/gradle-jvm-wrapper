@@ -366,6 +366,10 @@ class Plugin : Plugin<Project> {
             else
               die "ERROR: Please install unzip"
             fi
+          elif command -v cygpath >/dev/null 2>&1; then
+            # msys GNU tar parses the colon in a C:/... -f argument as a
+            # remote-host spec; hand it the /c/... form instead.
+            tar -x -f "${'$'}(cygpath -u "${"$"}JVM_TEMP_FILE")" -C "${"$"}JVM_TARGET_DIR"
           else
             tar -x -f "${"$"}JVM_TEMP_FILE" -C "${"$"}JVM_TARGET_DIR"
           fi

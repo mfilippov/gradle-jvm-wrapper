@@ -97,9 +97,13 @@ class PluginTest {
     @Test
     @EnabledOnOs(OS.WINDOWS)
     fun smokeMsys(@TempDir tempDir: Path) {
-        // Runs the unix wrapper script under Git Bash: covers the cygwin/msys branch
-        // (incl. the aarch64 arch case on ARM runners) and the PowerShell zip
-        // fallback, since Git Bash ships no unzip.
+        // The default windows URLs are zips: covers the PowerShell zip fallback,
+        // since Git Bash ships no unzip (and the aarch64 arch case on ARM runners).
+        doSmokeMsys(tempDir, windowsX64Url = null)
+    }
+
+    // Runs the unix wrapper script under Git Bash (the cygwin/msys branch).
+    private fun doSmokeMsys(tempDir: Path, windowsX64Url: String?) {
         if (System.getenv("CI") != null) {
             // A skip would silently drop the only end-to-end coverage of the msys
             // branch if a runner image ever moves or drops Git for Windows.
@@ -118,6 +122,7 @@ class PluginTest {
                 winJvmInstallDir = "${jvmInstallDir.absolutePath.replace("\\", "\\\\")}"
                 unixJvmInstallDir = "/${jvmInstallDir.absolutePath[0].lowercaseChar()}${
                     jvmInstallDir.absolutePath.substring(2).replace("\\", "/")}"
+                ${windowsX64Url?.let { """windowsX64JvmUrl = "$it"""" } ?: ""}
             }
             tasks.register("hello") {
                 doLast {
@@ -136,6 +141,15 @@ class PluginTest {
         result.exitCode.shouldBe(0, "Non zero exit code:\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\n")
         jvmInstallDir.exists().shouldBeTrue("The JVM was not installed into $jvmInstallDir")
 
+    }
+
+    @Test
+    @EnabledOnOs(value = [OS.WINDOWS], architectures = ["amd64"])
+    fun smokeMsysTarGz(@TempDir tempDir: Path) {
+        // The tar extraction branch under Git Bash: msys GNU tar must receive the
+        // archive path in the /c/... form (a C:/ path parses as a remote host).
+        doSmokeMsys(tempDir,
+            "https://cache-redirector.jetbrains.com/intellij-jbr/jbr-17.0.3-windows-x64-b469.37.tar.gz")
     }
 
     @Test
