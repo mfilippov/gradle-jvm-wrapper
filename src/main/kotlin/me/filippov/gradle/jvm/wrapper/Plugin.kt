@@ -451,7 +451,10 @@ class Plugin : Plugin<Project> {
         ${'$'}lockDir = [System.IO.Path]::GetFullPath(${'$'}env:BUILD_DIR).TrimEnd('\').ToLowerInvariant(); ^
         ${'$'}lockHash = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes(${'$'}lockDir))).Replace('-', ''); ^
         ${'$'}lockName = 'Global\gradle-jvm-wrapper-' + ${'$'}lockHash; ^
-        ${'$'}lock = New-Object System.Threading.Mutex(${'$'}true, ${'$'}lockName, [ref]${'$'}createdNew); ^
+        ${'$'}mutexSecurity = New-Object System.Security.AccessControl.MutexSecurity; ^
+        ${'$'}everyoneSid = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::WorldSid, ${'$'}null); ^
+        ${'$'}mutexSecurity.AddAccessRule((New-Object System.Security.AccessControl.MutexAccessRule(${'$'}everyoneSid, ([System.Security.AccessControl.MutexRights]::Modify -bor [System.Security.AccessControl.MutexRights]::Synchronize), [System.Security.AccessControl.AccessControlType]::Allow))); ^
+        ${'$'}lock = New-Object System.Threading.Mutex(${'$'}true, ${'$'}lockName, [ref]${'$'}createdNew, ${'$'}mutexSecurity); ^
         if (-not ${'$'}createdNew) { ^
             Write-Host 'Waiting for the other process to finish the JVM bootstrap'; ^
             try { [void]${'$'}lock.WaitOne(); } catch [System.Threading.AbandonedMutexException] { } ^
