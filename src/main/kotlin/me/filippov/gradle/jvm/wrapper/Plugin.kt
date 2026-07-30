@@ -16,8 +16,8 @@ class Plugin : Plugin<Project> {
         private const val patchedFileEndMarker = "GRADLE JVM WRAPPER END MARKER"
         private const val unixPatchPlaceHolder = "# Determine the Java command to use to start the JVM."
         private const val winPatchPlaceHolder = "@rem Find java.exe"
-        const val wrapperTaskName = "wrapper"
-        const val extensionName = "jvmWrapper"
+        private const val wrapperTaskName = "wrapper"
+        private const val extensionName = "jvmWrapper"
 
         // Returns null when the script is already patched. Fails instead of silently
         // producing an unpatched script when the placeholder is not in the template:
@@ -72,8 +72,8 @@ class Plugin : Plugin<Project> {
         val base = baseArchiveUrl(url)
         // Replaced: the characters Windows forbids in a directory name, plus '&'
         // and '^', which the stock template's unquoted 'set JAVA_HOME=...' cannot
-        // survive. Anything else (say, the '+' in bellsoft-jdk21.0.5+11) is kept
-        // so the derived names stay identical to the ones 0.16.0 produced.
+        // survive. Anything else (say, the '+' in bellsoft-jdk21.0.5+11) is kept,
+        // so for the kept characters the derived names match the 0.16.0 ones.
         val name = base.substringAfterLast('/')
             .replace(Regex("(?i)\\.(zip|tar\\.gz|tgz)$"), "")
             .map { if (it in "<>:\"/\\|?*&^") '-' else it }
