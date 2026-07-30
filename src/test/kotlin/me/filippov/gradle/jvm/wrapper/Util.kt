@@ -22,13 +22,17 @@ val wrapperScriptFileName = when {
 
 data class TaskResult(val exitCode: Int, val stdout: String, val stderr: String)
 
-private fun gradlewProcessBuilder(projectRoot: File, task: String): ProcessBuilder {
+// Shared by every wrapper invocation so the msys tests cannot silently diverge
+// from the other smoke tests when the contract changes.
+private fun gradlewArguments(task: String): List<String> {
     val workingDirectory = File(System.getProperty("user.dir"))
-    return ProcessBuilder(
-            projectRoot.resolve(wrapperScriptFileName).absolutePath, "--include-build",
-            workingDirectory.absolutePath, "-Pkotlin.compiler.execution.strategy=in-process", "--no-daemon", ":$task")
-        .directory(projectRoot)
+    return listOf("--include-build", workingDirectory.absolutePath,
+        "-Pkotlin.compiler.execution.strategy=in-process", "--no-daemon", ":$task")
 }
+
+private fun gradlewProcessBuilder(projectRoot: File, task: String): ProcessBuilder =
+    ProcessBuilder(listOf(projectRoot.resolve(wrapperScriptFileName).absolutePath) + gradlewArguments(task))
+        .directory(projectRoot)
 
 // destroyForcibly alone kills only the direct child (cmd.exe/sh); a surviving java
 // grandchild would keep @TempDir files locked and the pipes open. Best effort: a
@@ -65,13 +69,9 @@ fun gradlew(projectRoot: File, task: String): TaskResult =
 val gitBash = File("""C:\Program Files\Git\bin\bash.exe""")
 
 // Runs the unix wrapper script on Windows under Git Bash (the msys environment).
-fun gradlewInGitBash(projectRoot: File, task: String): TaskResult {
-    val workingDirectory = File(System.getProperty("user.dir"))
-    return runProcess(ProcessBuilder(
-            gitBash.absolutePath, "./gradlew", "--include-build",
-            workingDirectory.absolutePath, "-Pkotlin.compiler.execution.strategy=in-process", "--no-daemon", ":$task")
+fun gradlewInGitBash(projectRoot: File, task: String): TaskResult =
+    runProcess(ProcessBuilder(listOf(gitBash.absolutePath, "./gradlew") + gradlewArguments(task))
         .directory(projectRoot))
-}
 
 fun gradlewParallel(projectRoot: File, task: String, count: Int): List<TaskResult> {
     val processes = mutableListOf<Process>()
