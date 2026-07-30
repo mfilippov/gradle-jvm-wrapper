@@ -489,6 +489,7 @@ class Plugin : Plugin<Project> {
                 } ^
                 [void](New-Item ${'$'}env:JVM_TARGET_DIR -ItemType Directory -Force); ^
                 if (${'$'}env:IS_TAR_GZ -eq '1') { ^
+                    ${'$'}env:Path = ${'$'}env:SystemRoot + '\System32;' + ${'$'}env:Path; ^
                     tar -x -f ${'$'}archiveFile -C (${'$'}env:JVM_TARGET_DIR + '.'); ^
                     if (${'$'}LASTEXITCODE -ne 0) { throw 'tar extraction failed'; } ^
                 } else { ^
